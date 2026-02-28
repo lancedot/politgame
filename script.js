@@ -5,38 +5,52 @@ const state = {
   risk: 20,
   privateAccount: 0,
   stock: 78,
+  marketCap: 93.6,
   charisma: 40,
   morality: 80,
   fraudCount: 0,
+  firstAction: "",
+  forecastPaperGain: 95,
+  marketExpectedGain: 110,
   actionDone: false,
+  auditDone: false,
   callDone: false,
 };
 
 const quarterConfig = {
   1: {
-    name: "第一季度：虚假黎明（The MTM Magic）",
-    desc: "天然气业务增长太慢。华尔街不爱真实利润，只爱故事。",
-    intro: "签下 20 年能源合同，用 MTM 把未来收益一次性搬到当季。",
-    action: "mtm",
+    name: "安然季度股东大会决议 · 第一季度",
+    desc: "主营业务稳健但不性感。你需要决定本季度叙事是否激进。",
+    intro: "Q1 决议：启用 MTM 并设定乐观系数，决定虚假利润的起点。",
   },
   2: {
-    name: "第二季度：影子帝国（The SPE Labyrinth）",
-    desc: "债务压顶。你需要把烂资产和债务‘卖给’壳公司 Chewco。",
-    intro: "建立 SPE 并转移债务，用安然股价做担保。",
-    action: "spe",
+    name: "安然季度股东大会决议 · 第二季度",
+    desc: "债务与亏损资产侵蚀报表，必须动用 SPE 洗表。",
+    intro: "Q2 决议：Chewco 接盘规模决定你的报表洁净度与担保风险。",
   },
   3: {
-    name: "第三季度：疯狂收割（Market Manipulation）",
-    desc: "现金流快断了。你盯上了电力市场漏洞与人为停机。",
-    intro: "触发‘加州停电计划’，用恐慌收割交易利润。",
-    action: "blackout",
+    name: "安然季度股东大会决议 · 第三季度",
+    desc: "现金流紧绷，你考虑利用电力市场漏洞制造波动利润。",
+    intro: "Q3 决议：停机策略越激进，现金回流越快但舆情越危险。",
   },
   4: {
-    name: "第四季度：纸牌屋倒塌（The Endgame）",
-    desc: "股价下跌触发担保连锁爆炸。你必须边喊多边套现。",
-    intro: "选择内幕套现速度、碎纸机行动与吹哨者处理方式。",
-    action: "endgame",
+    name: "安然季度股东大会决议 · 第四季度",
+    desc: "股价回撤触发担保链危机，你进入套现与灭证窗口。",
+    intro: "Q4 决议：决定套现速度、碎纸机强度与吹哨者处理策略。",
   },
+};
+
+const analystQuestionBank = {
+  conservative: [
+    "你在 Q1 采用保守 MTM，为什么 Q2 开始利润突然陡增？",
+    "如果你的预测谨慎，为什么现金流仍持续背离利润？",
+    "保守模型是否说明公司真实增长其实并不支持当前估值？",
+  ],
+  aggressive: [
+    "你在 Q1 激进拉高了未来电价假设，参数依据是什么？",
+    "你的高增长是否建立在无法持续签新合同的前提上？",
+    "如果 MTM 假设回调 10%，当季利润会不会直接失真？",
+  ],
 };
 
 const jargonA = ["协同效应", "价值共生", "范式转移", "资产轻量化", "动态风险中台", "结构性增长飞轮"];
@@ -45,6 +59,10 @@ const jargonB = ["全链路赋能", "战略解耦", "现金流再造", "监管�
 function formatMoney(v) {
   const sign = v >= 0 ? "$" : "-$";
   return `${sign}${Math.abs(v).toFixed(1)}M`;
+}
+
+function formatBillion(v) {
+  return `$${v.toFixed(1)}B`;
 }
 
 function feed(text, type = "") {
@@ -60,13 +78,22 @@ function bumpCorruption(level) {
   state.charisma = Math.min(100, state.charisma + 7 * level);
 }
 
+function updateMarketDerived() {
+  state.marketCap = (state.stock * 1.2);
+  state.marketExpectedGain = 110 + state.quarter * 18 + state.fraudCount * 4;
+}
+
 function renderMetrics() {
+  updateMarketDerived();
   const list = [
     ["账面收益 Paper Gain", formatMoney(state.paperGain)],
     ["真实头寸 Real Cash", formatMoney(state.realCash)],
     ["合规风险 Risk Meter", `${Math.round(state.risk)} / 100`],
     ["个人账户 Private Account", formatMoney(state.privateAccount)],
-    ["安然股价 Stock", state.stock.toFixed(1)],
+    ["股价 Stock Price", `$${state.stock.toFixed(1)}`],
+    ["市值 Market Cap", formatBillion(state.marketCap)],
+    ["市场预期利润", formatMoney(state.marketExpectedGain)],
+    ["你本季虚假预测", formatMoney(state.forecastPaperGain)],
     ["自信心 Charisma", `${Math.round(state.charisma)} / 100`],
     ["道德值 Morality", `${Math.round(state.morality)} / 100`],
   ];
@@ -74,6 +101,12 @@ function renderMetrics() {
   document.getElementById("metrics").innerHTML = list
     .map(([k, v]) => `<article class="metric"><h3>${k}</h3><strong>${v}</strong></article>`)
     .join("");
+
+  const gap = state.forecastPaperGain - state.marketExpectedGain;
+  const compareEl = document.getElementById("forecastCompare");
+  const tone = gap >= 0 ? "good" : "bad";
+  compareEl.className = `small ${tone}`;
+  compareEl.textContent = `对比：你承诺的利润 ${formatMoney(state.forecastPaperGain)}，市场预期 ${formatMoney(state.marketExpectedGain)}，差额 ${formatMoney(gap)}。`;
 
   const decay = Math.min(1, (100 - state.morality) / 100);
   const motto = document.getElementById("motto");
@@ -86,7 +119,7 @@ function renderMetrics() {
 function generateReportText() {
   const a = jargonA[(state.quarter + state.fraudCount) % jargonA.length];
   const b = jargonB[(state.quarter + Math.floor(state.charisma / 10)) % jargonB.length];
-  return `董事会认为，本季度公司通过“${a}”与“${b}”，实现了高质量增长。当前利润与现金流的‘错配’属于战略前置投入，管理层对长期价值释放保持绝对信心。`;
+  return `董事会认为，本季度公司通过“${a}”与“${b}”，实现结构性增长。利润与现金流错位是战略投资结果，管理层对长期回报保持坚定信心。`;
 }
 
 function renderQuarterStatus() {
@@ -94,11 +127,11 @@ function renderQuarterStatus() {
   document.getElementById("phaseInfo").textContent = q.name;
   document.getElementById("phaseDesc").textContent = q.desc;
   document.getElementById("actionIntro").textContent = q.intro;
-  const hint = state.actionDone && state.callDone
-    ? "本季度操作完成：点击下方按钮发布财报进入下一季度。"
-    : "先完成【核心任务】和【电话会议】两项操作，才能推进季度。";
+  const hint = state.actionDone && state.auditDone && state.callDone
+    ? "本季度决议流程完成：可发布财报并进入下一季度。"
+    : "需依次完成【核心任务】、【审计沟通】、【分析师会议】三项流程。";
   document.getElementById("operationHint").textContent = hint;
-  document.getElementById("nextQuarterBtn").disabled = !(state.actionDone && state.callDone);
+  document.getElementById("nextQuarterBtn").disabled = !(state.actionDone && state.auditDone && state.callDone);
 }
 
 function renderActionPanel() {
@@ -107,31 +140,34 @@ function renderActionPanel() {
 
   if (state.quarter === 1) {
     root.innerHTML = `
-      <label for="optimism">乐观预测滑块（50%-100%）</label>
+      <label for="optimism">MTM 乐观预测（50%-100%）</label>
       <input type="range" id="optimism" min="50" max="100" step="5" value="65" />
       <p id="optimismPreview"></p>
-      <button id="actionBtn" ${state.actionDone ? 'disabled' : ''}>执行 MTM 魔法</button>
+      <button id="actionBtn" ${state.actionDone ? "disabled" : ""}>提交 Q1 决议</button>
     `;
     const slider = document.getElementById("optimism");
     const preview = document.getElementById("optimismPreview");
     const refresh = () => {
       const optimism = Number(slider.value);
       const gain = Math.round((optimism - 45) * 5.5);
-      preview.textContent = `预计当季利润 +$${gain}M（最高可接近 +500% 账面增幅）`;
+      preview.textContent = `预计本季可宣称利润 +$${gain}M（高乐观值会带来高估值压力）`;
     };
     slider.addEventListener("input", refresh);
     refresh();
+
     document.getElementById("actionBtn").onclick = () => {
       if (state.actionDone) return;
       const optimism = Number(slider.value);
       const gain = (optimism - 45) * 5.5;
       state.paperGain += gain;
-      state.stock += optimism >= 90 ? 23 : 12;
+      state.forecastPaperGain = state.paperGain + 30;
+      state.stock += optimism >= 90 ? 22 : 12;
       state.risk += (optimism - 50) * 0.6;
       state.realCash -= 28;
+      state.firstAction = optimism >= 85 ? "aggressive" : "conservative";
       bumpCorruption(optimism >= 90 ? 2 : 1);
       state.actionDone = true;
-      feed("MTM 释放魔法：未来 20 年利润被你拖进了本季度。", "good");
+      feed("Q1 决议通过：MTM 预测已录入董事会摘要。", "good");
       render();
     };
     return;
@@ -139,7 +175,7 @@ function renderActionPanel() {
 
   if (state.quarter === 2) {
     root.innerHTML = `
-      <p>请选择本季度转移至 Chewco 的债务规模：</p>
+      <p>选择转移至 Chewco 的债务规模：</p>
       <div class="choices" id="speChoices"></div>
     `;
     const opts = [
@@ -155,11 +191,12 @@ function renderActionPanel() {
       btn.onclick = () => {
         if (state.actionDone) return;
         state.paperGain += o.debt * 0.08;
+        state.forecastPaperGain = state.paperGain + o.debt * 0.02;
         state.stock += o.stock;
         state.risk += o.risk;
         state.realCash -= 35;
         bumpCorruption(o.debt > 600 ? 2 : 1);
-        feed(`Chewco 已吞下 ${formatMoney(o.debt)} 债务，主表瞬间‘变干净’。`, "warn");
+        feed(`Chewco 已接收 ${formatMoney(o.debt)} 债务，主报表负债率显著下降。`, "warn");
         state.actionDone = true;
         render();
       };
@@ -170,12 +207,12 @@ function renderActionPanel() {
 
   if (state.quarter === 3) {
     root.innerHTML = `
-      <p>加州高峰期，你要让电厂“维修”多久？</p>
+      <p>高峰时段停机策略：</p>
       <div class="choices" id="blackoutChoices"></div>
     `;
     const opts = [
-      { label: "停机 6 小时（低调套利）", cash: 120, risk: 16, press: "部分地区停电引发抱怨。" },
-      { label: "停机 24 小时（全州恐慌）", cash: 380, risk: 34, press: "电价飙升 1000%，舆论爆炸。" },
+      { label: "停机 6 小时（低调套利）", cash: 120, risk: 16, press: "局部停电，舆论升温。" },
+      { label: "停机 24 小时（全州恐慌）", cash: 380, risk: 34, press: "电价飙升，监管紧盯。" },
     ];
     const holder = document.getElementById("blackoutChoices");
     opts.forEach((o) => {
@@ -187,11 +224,11 @@ function renderActionPanel() {
         if (state.actionDone) return;
         state.realCash += o.cash;
         state.paperGain += o.cash * 0.3;
+        state.forecastPaperGain = state.paperGain + 45;
         state.risk += o.risk;
         state.stock += 6;
         bumpCorruption(2);
-        feed(`加州停电计划执行：${o.press}`, "bad");
-        feed("SEC 开始询问：为何你们利润总与灾难同步？", "warn");
+        feed(`停机策略执行：${o.press}`, "bad");
         state.actionDone = true;
         render();
       };
@@ -202,32 +239,32 @@ function renderActionPanel() {
 
   if (state.quarter === 4) {
     root.innerHTML = `
-      <p>终局三连：选择你的逃生配置。</p>
+      <p>终局操作包：</p>
       <div class="choices" id="endChoices"></div>
     `;
     const opts = [
       {
-        label: "极速套现 + 全面碎纸 + 强硬封口（高收益高风险）",
+        label: "极速套现 + 全面碎纸 + 强硬封口",
         apply: () => {
           state.privateAccount += 360;
           state.realCash -= 120;
           state.stock -= 30;
+          state.forecastPaperGain = state.paperGain + 60;
           state.risk += 42;
           bumpCorruption(3);
-          feed("你在电视上喊‘基本面坚不可摧’，同时后台疯狂抛售。", "bad");
-          feed("安达信深夜碎纸机不停，内部会计主管被边缘化。", "warn");
+          feed("你公开喊多，私下抛售并启动全面碎纸流程。", "bad");
         },
       },
       {
-        label: "温和套现 + 选择性销毁 + 收买吹哨者（中风险）",
+        label: "温和套现 + 选择性销毁 + 收买吹哨者",
         apply: () => {
           state.privateAccount += 210;
           state.realCash -= 60;
           state.stock -= 18;
+          state.forecastPaperGain = state.paperGain + 25;
           state.risk += 28;
           bumpCorruption(2);
-          feed("你维持公开乐观，私下分批离场。", "warn");
-          feed("吹哨者被调岗并签下保密协议。", "warn");
+          feed("你分批离场并完成关键证据抽离。", "warn");
         },
       },
     ];
@@ -248,36 +285,96 @@ function renderActionPanel() {
   }
 }
 
+function renderAuditPanel() {
+  const root = document.getElementById("auditChoices");
+  root.innerHTML = "";
+
+  const options = [
+    {
+      label: "解释业务逻辑（高概率激怒审计）",
+      apply: () => {
+        state.risk += 10;
+        feed("安达信记录了更多‘待解释事项’，怀疑度上升。", "warn");
+      },
+    },
+    {
+      label: "支付 $8M 咨询费（典型勾结）",
+      apply: () => {
+        state.realCash -= 8;
+        state.risk = Math.max(0, state.risk - 14);
+        state.paperGain += 12;
+        state.forecastPaperGain += 18;
+        bumpCorruption(1);
+        feed("咨询费到账后，审计口径与管理层叙述‘高度一致’。", "good");
+      },
+    },
+    {
+      label: "向审计合伙人提供高管职位（旋转门）",
+      apply: () => {
+        state.realCash -= 15;
+        state.risk = Math.max(0, state.risk - 20);
+        state.paperGain += 20;
+        state.forecastPaperGain += 25;
+        bumpCorruption(2);
+        feed("审计合伙人接受岗位邀约，审计意见明显软化。", "warn");
+      },
+    },
+  ];
+
+  options.forEach((o) => {
+    const btn = document.createElement("button");
+    btn.className = "choice-btn";
+    btn.textContent = o.label;
+    btn.disabled = state.auditDone;
+    btn.onclick = () => {
+      if (state.auditDone) return;
+      o.apply();
+      state.auditDone = true;
+      render();
+    };
+    root.appendChild(btn);
+  });
+}
+
+function getAnalystQuestion() {
+  const bank = state.firstAction === "aggressive" ? analystQuestionBank.aggressive : analystQuestionBank.conservative;
+  return bank[(state.quarter - 1) % bank.length];
+}
+
 function renderCallChoices() {
   const root = document.getElementById("callChoices");
   root.innerHTML = "";
   const charmBonus = Math.floor(state.charisma / 25);
+
+  document.getElementById("callPrompt").textContent = `分析师提问：${getAnalystQuestion()}`;
+
   const options = [
     {
-      label: `专业术语糊弄（受 Charisma +${charmBonus} 加成）`,
+      label: `用会计术语回避（Charisma +${charmBonus}）`,
       apply: () => {
         state.stock += 5 + charmBonus;
         state.risk += 6;
-        feed("‘这是前瞻性的范式转移。’ 分析师点头假装听懂。", "good");
+        feed("你用术语堆砌回答，提问被迫结束。", "good");
       },
     },
     {
-      label: `怒斥提问者：你连会计准则都不懂吗？（Skilling 名场面）`,
+      label: "强硬质疑提问动机",
       apply: () => {
         state.stock += 2 + charmBonus;
         state.risk += 10;
         state.charisma += 2;
-        feed("你的傲慢被部分投资者视作‘天才气场’。", "warn");
+        feed("你把会议引向情绪对抗，支持者鼓掌，监管记笔记。", "warn");
       },
     },
     {
-      label: `给出虚假承诺：下季再增长 30%`,
+      label: "给出更激进增长承诺",
       apply: () => {
         state.stock += 10 + charmBonus;
-        state.paperGain += 40;
+        state.paperGain += 35;
+        state.forecastPaperGain += 40;
         state.risk += 14;
         bumpCorruption(1);
-        feed("掌声如雷，但你把未来又透支了一层。", "good");
+        feed("你承诺更高目标，短线资金继续追涨。", "good");
       },
     },
   ];
@@ -302,13 +399,17 @@ function settleQuarter() {
   const interest = 120 + state.quarter * 15;
   state.realCash -= operatingCost + interest;
 
-  if (state.paperGain < 120 + state.quarter * 35) {
+  if (state.paperGain < state.marketExpectedGain) {
     state.stock -= 8;
     state.risk += 8;
-    feed("增长未达市场预期，股价和情绪同步下挫。", "warn");
+    feed("披露利润低于市场预期，股价下挫。", "warn");
+  } else {
+    state.stock += 5;
+    feed("披露利润高于市场预期，股价短线拉升。", "good");
   }
 
   state.paperGain *= 0.7;
+  state.forecastPaperGain = state.paperGain + 20;
   state.stock = Math.max(2, state.stock);
   state.risk = Math.max(0, Math.min(130, state.risk));
   document.getElementById("report").textContent = generateReportText();
@@ -320,8 +421,9 @@ function settleQuarter() {
 
   state.quarter += 1;
   state.actionDone = false;
+  state.auditDone = false;
   state.callDone = false;
-  feed("季度已封账：董事会批准你继续‘创新’。", "warn");
+  feed("季度财报已发布，董事会进入下一轮操盘讨论。", "warn");
   render();
 }
 
@@ -333,14 +435,14 @@ function endGame() {
 
   let ending;
   if (state.privateAccount >= 300 && state.risk < 95) {
-    ending = ["结局 A：逃往小岛", "你在 FBI 破门前完成套现，飞往无引渡条约海岛。"];
+    ending = ["决议结论 A：管理层离场", "你在监管全面行动前完成套现并离开。"];
   } else {
-    ending = ["结局 B：法庭清算", "你动作慢了一拍，股价跌穿平仓线，昔日同僚在庭上轮流指认你。"];
+    ending = ["决议结论 B：责任追索", "你未能在流动性断裂前撤离，进入司法追责流程。"];
   }
 
   title.textContent = ending[0];
   desc.textContent = ending[1];
-  score.textContent = `私人账户 ${formatMoney(state.privateAccount)} · 风险 ${Math.round(state.risk)} · Charisma ${Math.round(state.charisma)} · Morality ${Math.round(state.morality)}`;
+  score.textContent = `私人账户 ${formatMoney(state.privateAccount)} · 风险 ${Math.round(state.risk)} · 股价 $${state.stock.toFixed(1)} · 市值 ${formatBillion(state.marketCap)}`;
   overlay.classList.remove("hidden");
 }
 
@@ -348,14 +450,14 @@ function render() {
   renderMetrics();
   renderQuarterStatus();
   renderActionPanel();
+  renderAuditPanel();
   renderCallChoices();
   const reportNode = document.getElementById("report");
   if (!reportNode.textContent) reportNode.textContent = generateReportText();
-  document.getElementById("nextQuarterBtn").disabled = !(state.actionDone && state.callDone);
 }
 
 document.getElementById("nextQuarterBtn").addEventListener("click", settleQuarter);
 
-feed("第一季度：华尔街嫌 5% 增长太慢，要求你立刻制造奇迹。", "warn");
-feed("欢迎来到数字恐怖游戏：这里每次舞弊都能换来更高的 Charisma。", "bad");
+feed("议程启动：本季目标是让利润叙事高于市场预期。", "warn");
+feed("提醒：你的第一步 MTM 选择会改变后续分析师提问方向。", "good");
 render();

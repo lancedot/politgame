@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Enron: 数字恐怖游戏</title>
+  <title>安然季度股东大会决议</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header class="topbar">
-    <h1>ENRON // 数字恐怖游戏</h1>
-    <p class="subtitle">硬核模拟 + 黑色幽默：你管理的不是公司，而是坠落速度。</p>
+    <h1>安然季度股东大会决议</h1>
+    <p class="subtitle">你管理的是预期、口径与责任的转移速度。</p>
   </header>
 
   <section class="metrics" id="metrics"></section>
@@ -20,6 +20,7 @@
       <h2>季度战情</h2>
       <p id="phaseInfo"></p>
       <p id="phaseDesc"></p>
+      <p id="forecastCompare" class="small"></p>
       <p id="operationHint" class="small"></p>
       <button id="nextQuarterBtn" disabled>发布财报并进入下一季度</button>
     </section>
@@ -30,15 +31,21 @@
       <div id="actionArea"></div>
     </section>
 
+    <section class="panel" id="auditPanel">
+      <h2>审计沟通</h2>
+      <p class="small">与安达信的关系管理会影响怀疑度与披露口径。</p>
+      <div class="choices" id="auditChoices"></div>
+    </section>
+
     <section class="panel" id="callPanel">
-      <h2>分析师电话会议（Boss战）</h2>
-      <p id="callPrompt">你的回答将受 Charisma 加成，但风险也会同步增长。</p>
+      <h2>分析师会议</h2>
+      <p id="callPrompt"></p>
       <div class="choices" id="callChoices"></div>
     </section>
 
     <section class="panel" id="reportPanel">
-      <h2>“年度报告”生成器</h2>
-      <p class="small">每季度自动生成一段商业黑话，用于麻痹投资者。</p>
+      <h2>季度报告生成器</h2>
+      <p class="small">每季度自动生成一段商业黑话，用于投资者沟通。</p>
       <article id="report"></article>
     </section>
 
@@ -53,7 +60,7 @@
       <h2 id="endingTitle"></h2>
       <p id="endingDesc"></p>
       <p id="endingScore"></p>
-      <button onclick="location.reload()">重开这场骗局</button>
+      <button onclick="location.reload()">重新召开季度会议</button>
     </div>
   </div>
 
