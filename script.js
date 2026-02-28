@@ -32,6 +32,10 @@ const state = {
   mtmMode: "neutral",
   prisonYears: 0,
   quoteShownForQuarter: 0,
+  debt: 260,
+  totalAssets: 1400,
+  prevStock: 78,
+  audioCtx: null,
 };
 
 const quarterConfig = {
@@ -105,11 +109,11 @@ const timelineData = {
 
 const quarterRandomEvents = {
   1: {
-    title: "季度突发：分析师灵魂拷问",
-    desc: "高盛分析师当众追问：为什么你们现金流和利润像两家公司？",
+    title: "季度突发：做空者质疑",
+    desc: "做空机构钱诺斯在 CNBC 上公开质疑我们的现金流不匹配，盘中股价先跌 10%。",
     choices: [
-      { label: "A. 当场怒喷：‘你连现金流量表都看不懂’", effect: (st) => { st.stock -= 4; st.charisma += 4; st.mediaHeat += 6; st.risk += 3; const msg = "你在电话会上怒喷分析师，股价短线回落，但社媒把你捧成‘暴君天才’。"; feed(msg, "warn"); return msg; } },
-      { label: "B. 邀请游艇晚宴，顺便‘再解释一次’", effect: (st) => { st.realCash -= 12; st.secAttention = Math.max(0, st.secAttention - 5); st.mediaHeat = Math.max(0, st.mediaHeat - 2); st.risk = Math.max(0, st.risk - 3); const msg = "香槟与海风成功降温，质疑暂缓，但现金悄悄蒸发。"; feed(msg, "good"); return msg; } },
+      { label: "【公开羞辱他】（股价 +5%，风险 +15）", effect: (st) => { st.stock *= 1.05; st.risk += 15; st.mediaHeat += 8; st.charisma += 2; const msg = "你把电话会开成了擂台赛，短线情绪回暖，但监管留档更完整了。"; feed(msg, "warn"); return msg; } },
+      { label: "【发布虚假利好压制】（现金 -$50M，风险 +5）", effect: (st) => { st.realCash -= 50; st.risk += 5; st.stock += 3; st.secAttention += 3; const msg = "你用利好公告盖住质疑，市场先信了，审计先记下了。"; feed(msg, "good"); return msg; } },
     ],
   },
   2: {
@@ -121,11 +125,10 @@ const quarterRandomEvents = {
     ],
   },
   3: {
-    title: "季度突发：州政府问责",
-    desc: "停电影响扩大，州政府要求公开交易记录。",
+    title: "季度突发：加州电网套利",
+    desc: "西海岸电力需求激增。你可以通过人为制造局部停电，套取 10 倍电价差。",
     choices: [
-      { label: "A. 甩锅天气与电网老化", effect: (st) => { st.stock += 1; st.mediaHeat += 6; st.whistleblowerPressure += 4; const msg = "甩锅话术奏效半天，媒体决定连夜开源你的邮件。"; feed(msg, "warn"); return msg; } },
-      { label: "B. 设立补偿基金平息舆情", effect: (st) => { st.realCash -= 25; st.mediaHeat = Math.max(0, st.mediaHeat - 5); st.secAttention = Math.max(0, st.secAttention - 2); const msg = "你花钱买了宁静，但 CFO 最怕的从来不是热搜，而是现金。"; feed(msg, "good"); return msg; } },
+      { label: "【执行‘死星’计划】（账面利润 +$500M，风险 +30）", effect: (st) => { st.paperGain += 500; st.forecastPaperGain += 120; st.realCash += 180; st.risk += 30; st.secAttention += 10; st.mediaHeat += 12; st.whistleblowerPressure += 8; const msg = "交易台欢呼‘死星’计划大获全胜，州政府与检察官同步上线。"; feed(msg, "bad"); return msg; } },
     ],
   },
   4: {
@@ -263,10 +266,45 @@ function bumpCorruption(level) {
   state.whistleblowerPressure += level * 1.5;
 }
 
+function applyRiskPressure(baseRisk) {
+  const leverage = Math.max(0, state.debt / Math.max(1, state.totalAssets));
+  const amplified = baseRisk * (1 + leverage);
+  state.risk += amplified;
+  return amplified;
+}
+
+function updateDangerEffects() {
+  const dangerOn = state.risk > 80 || state.realCash < 100;
+  document.body.classList.toggle("danger-mode", dangerOn);
+  if (!dangerOn) return;
+  if (!state.audioCtx) state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (state.audioCtx.state === "suspended") state.audioCtx.resume();
+  const osc = state.audioCtx.createOscillator();
+  const gain = state.audioCtx.createGain();
+  osc.type = "sawtooth";
+  osc.frequency.value = 82 + Math.random() * 25;
+  gain.gain.value = 0.004;
+  osc.connect(gain);
+  gain.connect(state.audioCtx.destination);
+  osc.start();
+  osc.stop(state.audioCtx.currentTime + 0.08);
+}
+
+function shakeStockMetric() {
+  const stockEl = document.getElementById("metricStockValue");
+  if (!stockEl) return;
+  if (Math.abs(state.stock - state.prevStock) < 0.3) return;
+  stockEl.classList.remove("shake");
+  void stockEl.offsetWidth;
+  stockEl.classList.add("shake");
+  setTimeout(() => stockEl.classList.remove("shake"), 380);
+  state.prevStock = state.stock;
+}
+
 function updateMarketDerived() {
   state.marketCap = state.stock * 1.2;
-  // 调低市场一致预期斜率，避免几乎每局都因“必然 miss”触发股价雪崩。
-  state.marketExpectedGain = 88 + state.quarter * 14 + state.fraudCount * 3;
+  // 预期仍随季度与舞弊抬升，但更强调可管理区间。
+  state.marketExpectedGain = 86 + state.quarter * 12 + state.fraudCount * 2.6;
 }
 
 function getAnalystRatings() {
@@ -326,7 +364,7 @@ function renderMetrics() {
   ];
 
   document.getElementById("metrics").innerHTML = list
-    .map(([k, v]) => `<article class="metric"><h3>${k}</h3><strong>${v}</strong></article>`)
+    .map(([k, v], i) => `<article class="metric"><h3>${k}</h3><strong ${i === 3 ? 'id="metricStockValue"' : ""}>${v}</strong></article>`)
     .join("");
 
   const gap = state.forecastPaperGain - state.marketExpectedGain;
@@ -372,7 +410,7 @@ function renderInvestigationPanel() {
 function triggerSpecialEvents() {
   if (state.whistleblowerPressure >= 62 && !state.triggeredEvents.has("whistle")) {
     state.triggeredEvents.add("whistle");
-    state.risk += 3;
+    applyRiskPressure(3);
     feed("匿名内部备忘录外泄：‘我们正在把亏损藏在叙事里。’", "warn");
     state.historyLog.push("吹哨者事件触发");
   }
@@ -440,16 +478,16 @@ function renderActionPanel() {
 
   if (state.quarter === 1) {
     root.innerHTML = `
-      <label for="optimism">MTM 乐观系数（50%-100%）</label>
+      <label for="optimism">【资产价值重估 (Re-mark Assets)】参数（50%-100%）</label>
       <input type="range" id="optimism" min="50" max="100" step="5" value="65" ${state.actionDone ? "disabled" : ""} />
       <p id="optimismPreview"></p>
       ${renderImpact("选择前影响预览", [
-        "账面收益：+（与乐观系数正相关）",
+        "利用逐日盯市会计准则，将未来20年的预期净利润折现至本季报表。这不是造假，这是对未来的远见。",
         "风险：+（SEC关注 +1~+6；媒体热度 +1~+5）",
         "现实后果：若≥85，后续分析师提问转为‘激进质询’",
       ])}
       ${renderTermButtons(["MTM"])}
-      <button id="actionBtn" ${state.actionDone ? "disabled" : ""}>提交 Q1 决议</button>
+      <button id="actionBtn" ${state.actionDone ? "disabled" : ""}>【资产价值重估 (Re-mark Assets)】执行</button>
     `;
 
     const slider = document.getElementById("optimism");
@@ -467,7 +505,7 @@ function renderActionPanel() {
       state.paperGain += (optimism - 45) * 5.5;
       state.forecastPaperGain = state.paperGain + 30;
       state.stock += optimism >= 90 ? 22 : 12;
-      state.risk += (optimism - 50) * 0.6;
+      applyRiskPressure((optimism - 50) * 0.6);
       state.realCash -= 28;
       state.secAttention += Math.max(1, (optimism - 50) * 0.12);
       state.mediaHeat += Math.max(1, (optimism - 55) * 0.1);
@@ -486,17 +524,17 @@ function renderActionPanel() {
 
   if (state.quarter === 2) {
     root.innerHTML = `
-      <p>选择转移至 Chewco/LJM 的债务规模：</p>
+      <p>【资产负债表表外化 (Off-Balance Sheet Financing)】请选择 LJM2 承接规模：</p>
       ${renderImpact("选择前影响预览", [
-        "$400M：账面收益 +$32M，SEC +4，吹哨压力 +3",
+        "将高负债资产剥离至关联实体 LJM2。让我们的财报看起来像处女一样纯洁。",
         "$1000M：账面收益 +$80M，SEC +9，吹哨压力 +7，股价短期更强",
       ])}
       ${renderTermButtons(["SPE"])}
       <div class="choices" id="speChoices"></div>
     `;
     const opts = [
-      { label: "转移 $400M（保守洗表）", debt: 400, risk: 8, stock: 8, sec: 4, whistle: 3 },
-      { label: "转移 $1000M（激进洗表）", debt: 1000, risk: 22, stock: 18, sec: 9, whistle: 7 },
+      { label: "【资产负债表表外化】转移 $400M（保守）", debt: 400, risk: 8, stock: 8, sec: 2, whistle: 3 },
+      { label: "【资产负债表表外化】转移 $1000M（激进）", debt: 1000, risk: 22, stock: 18, sec: 6, whistle: 7 },
     ];
     const holder = document.getElementById("speChoices");
     opts.forEach((o) => {
@@ -509,8 +547,10 @@ function renderActionPanel() {
         state.paperGain += o.debt * 0.08;
         state.forecastPaperGain = state.paperGain + o.debt * 0.02;
         state.stock += o.stock;
-        state.risk += o.risk;
+        applyRiskPressure(o.risk);
         state.realCash -= 35;
+        state.debt += o.debt * 0.65;
+        state.totalAssets += o.debt * 0.4;
         state.secAttention += o.sec;
         state.whistleblowerPressure += o.whistle;
         state.mediaHeat += 3;
@@ -551,7 +591,7 @@ function renderActionPanel() {
         state.realCash += o.cash;
         state.paperGain += o.cash * 0.3;
         state.forecastPaperGain = state.paperGain + 45;
-        state.risk += o.risk;
+        applyRiskPressure(o.risk);
         state.stock += 6;
         state.mediaHeat += o.media;
         state.secAttention += o.sec;
@@ -571,15 +611,15 @@ function renderActionPanel() {
   root.innerHTML = `
     <p>终局操作包：</p>
     ${renderImpact("选择前影响预览", [
-      "极速方案：私人账户 +$360M，风险 +42，SEC +12，股价 -30",
+      "【启动文件留存策略 (Document Retention Policy)】碎纸机是CFO最好的朋友。在SEC敲门前，让那些不必要的草稿消失。",
       "温和方案：私人账户 +$210M，风险 +28，SEC +7，股价 -18",
     ])}
     <div class="choices" id="endChoices"></div>
   `;
 
   const opts = [
-    { label: "极速套现 + 全面碎纸 + 强硬封口", cash: 360, risk: 42, stockDrop: 30, sec: 12, corruption: 3 },
-    { label: "温和套现 + 选择性销毁 + 叙事控场", cash: 210, risk: 28, stockDrop: 18, sec: 7, corruption: 2 },
+    { label: "【启动文件留存策略】极速套现 + 全面碎纸 + 强硬封口", cash: 360, risk: 42, stockDrop: 30, sec: 10, corruption: 3 },
+    { label: "【启动文件留存策略】温和套现 + 选择性销毁 + 叙事控场", cash: 210, risk: 28, stockDrop: 18, sec: 5, corruption: 2 },
   ];
 
   const holder = document.getElementById("endChoices");
@@ -593,7 +633,7 @@ function renderActionPanel() {
       state.privateAccount += o.cash;
       state.realCash -= o.cash * 0.33;
       state.stock -= o.stockDrop;
-      state.risk += o.risk;
+      applyRiskPressure(o.risk);
       state.secAttention += o.sec;
       state.mediaHeat += 9;
       state.whistleblowerPressure += 9;
@@ -701,7 +741,7 @@ function renderCallChoices() {
     btn.onclick = () => {
       if (state.callDone) return;
       state.stock += opt.stock + charmBonus;
-      state.risk += opt.risk;
+      applyRiskPressure(opt.risk);
       state.secAttention += opt.sec || 0;
       state.mediaHeat += opt.media || 0;
       state.whistleblowerPressure += opt.whistle || 0;
@@ -763,7 +803,7 @@ function resolveQuarterRandomEvent(onDone) {
       const keyMap = {
         1: ["insult", "yacht"],
         2: ["transparent", "delay"],
-        3: ["blame", "fund"],
+        3: ["deadstar"],
         4: ["deny", "scapegoat"],
       };
       state.lastEventSummary = keyMap[state.quarter][idx];
@@ -796,7 +836,15 @@ function exerciseOptions() {
   state.privateAccount += proceeds;
   state.realCash -= proceeds * 0.3;
   state.stock -= Math.max(0.4, units * 0.02);
-  state.risk += 3;
+  applyRiskPressure(3);
+  const crashChance = Math.min(0.65, 0.18 + units * 0.01 + state.risk / 220);
+  if (Math.random() < crashChance) {
+    const crashDrop = 6 + Math.random() * 8;
+    state.stock -= crashDrop;
+    state.secAttention += 5;
+    state.mediaHeat += 6;
+    feed(`大宗减持被识别，做空盘狙击触发，股价瞬跌 ${crashDrop.toFixed(1)} 点。`, "bad");
+  }
   state.mediaHeat += 2;
   state.exercisedThisQuarter = true;
   state.historyLog.push(`期权变现：${units}份(${formatMoney(proceeds)})`);
@@ -830,6 +878,8 @@ function handleCashCrisisIfNeeded(onDone) {
       label: "通过 SPE 过桥融资（历史原型：表外结构融资）｜现金 +$180M / 风险 +12",
       apply: () => {
         state.realCash += 180;
+        state.debt += 160;
+        state.totalAssets += 80;
         state.risk += 9;
         state.secAttention += 8;
         state.whistleblowerPressure += 6;
@@ -873,7 +923,7 @@ function handleCashCrisisIfNeeded(onDone) {
 
 function settleQuarterCore() {
   const operatingCost = 110 + state.quarter * 10;
-  const interest = 120 + state.quarter * 15;
+  const interest = (120 + state.quarter * 15) + state.debt * 0.035;
   state.realCash -= operatingCost + interest;
   handleCashCrisisIfNeeded(settleQuarterPostFinance);
 }
@@ -902,7 +952,11 @@ function settleQuarterPostFinance() {
   state.paperGain *= 0.7;
   state.forecastPaperGain = state.paperGain + 20;
   state.stock = Math.max(2, state.stock);
-  state.risk = Math.max(0, state.risk - 10);
+  state.risk = Math.max(0, state.risk - 9);
+  state.secAttention = Math.max(0, state.secAttention - (state.auditIndependence > 65 ? 6 : 3));
+  if (state.mediaHeat < 55) state.secAttention = Math.max(0, state.secAttention - 2);
+  state.mediaHeat = Math.max(0, state.mediaHeat - 4);
+  state.whistleblowerPressure = Math.max(0, state.whistleblowerPressure - 3);
   state.risk = Math.max(0, Math.min(115, state.risk));
   clampInvestigation();
   document.getElementById("report").textContent = generateReportText();
@@ -936,12 +990,15 @@ function endGame() {
   state.prisonYears = Math.max(0, Math.round((state.risk * 0.18) + (state.secAttention > 85 ? 8 : 0) - (state.privateAccount / 80)));
 
   let ending;
-  if (state.risk >= 112 || state.stock < 12 || state.secAttention > 95) {
-    ending = ["结局A：历史线", "股价崩塌、调查落地、法庭直播。你终于获得稳定作息——在司法系统里。"];
-  } else if (state.privateAccount >= 150 && state.risk < 95 && state.secAttention < 86) {
-    ending = ["结局B：完美犯罪", "你在风暴前完成离场，朋友圈只剩海岛、雪茄和合规声明。"];
+  if (state.risk > 90 || state.secAttention > 98 || state.stock < 10) {
+    ending = ["F级：替罪羔羊", "法官判处你24年徒刑。你成为了贪婪的代名词，画像被印进所有商学院反面教材。"];
+  } else if (state.risk < 40 && state.privateAccount > 500) {
+    ending = ["S级：金融教父", "你成功在雪崩前退休。现在你在开曼群岛游艇上看着安然破产新闻，彷佛这只是别人的故事。"];
+  } else if (state.risk < 70 && state.privateAccount > 100) {
+    ending = ["A级：优雅脱身", "你名义上被判两年，但在精英律师团操作下只剩社区服务；海外账户足够你后半生无忧。"];
+    state.prisonYears = Math.max(0, Math.min(state.prisonYears, 2));
   } else {
-    ending = ["结局C：行业精英", "公司倒下了，但你把锅精确分配给他人，并成功转任治理顾问。"];
+    ending = ["B级：平庸之辈", "公司倒闭了，你也没捞到多少。余生将在无穷无尽的民事诉讼中被反复传唤。"];
   }
 
   const satiricalJudge = state.privateAccount >= 100 && state.prisonYears === 0
@@ -986,6 +1043,8 @@ function render() {
   const reportNode = document.getElementById("report");
   if (!reportNode.textContent) reportNode.textContent = generateReportText();
   renderTicker();
+  shakeStockMetric();
+  updateDangerEffects();
   maybeShowQuarterQuote();
 }
 
