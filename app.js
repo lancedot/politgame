@@ -112,9 +112,21 @@ const EVENTS = [
   },
 ];
 
+
+const MARKET_METRIC_MEANINGS = {
+  "市场需求": "行业整体需求热度（>1 代表扩张）",
+  "市场份额": "公司在目标市场占比",
+  "产品力": "产品竞争能力，影响转化与定价",
+  "品牌势能": "品牌影响力，提升获客效率",
+  "融资窗口": "当前市场融资环境（越高越容易融资）",
+  "累计股权稀释": "历史股权融资导致的稀释比例",
+  "年度考核失败次数": "累计未通过董事会年度KPI次数",
+};
+
 let game;
 let selectedTab = "pnl";
 let selectedDecisions = [];
+let openDecisionGroups = new Set(["增长"]);
 
 function createInitialState(backgroundId, industryId) {
   const industry = INDUSTRY_PRESETS[industryId];
@@ -420,7 +432,9 @@ function render() {
     ["融资窗口", game.company.financingWindow],
     ["累计股权稀释", game.company.equityDilution],
     ["年度考核失败次数", game.annualFailures],
-  ].map(([k, v]) => `<div class="metric"><span>${k}</span><span>${fmt(v)}</span></div>`).join("");
+  ]
+    .map(([k, v]) => `<div class="metric"><span>${k}<br><small>${MARKET_METRIC_MEANINGS[k]}</small></span><span>${fmt(v)}</span></div>`)
+    .join("");
 
   const pnl = game.statements.pnl;
   const bs = game.statements.bs;
@@ -435,12 +449,16 @@ function render() {
   document.getElementById("statement-table").innerHTML = map[selectedTab];
 
   const grouped = groupDecisions();
-  document.getElementById("decision-groups").innerHTML = Object.entries(grouped).map(([category, list], idx) => {
+  const groupEntries = Object.entries(grouped);
+  if (!openDecisionGroups.size && groupEntries.length) {
+    openDecisionGroups.add(groupEntries[0][0]);
+  }
+  document.getElementById("decision-groups").innerHTML = groupEntries.map(([category, list]) => {
     const inner = list.map(([id, d]) => {
       const active = selectedDecisions.includes(id);
       return `<div class="decision ${active ? "selected" : ""}"><h4>${d.name}</h4><p>${d.description}<br><small>${d.preview}</small></p><button data-pick="${id}">${active ? "取消" : "选择"}</button></div>`;
     }).join("");
-    return `<details class="group" ${idx === 0 ? "open" : ""}><summary>${category}</summary>${inner}</details>`;
+    return `<details class="group" data-group="${category}" ${openDecisionGroups.has(category) ? "open" : ""}><summary>${category}</summary>${inner}</details>`;
   }).join("");
 
   const submitDisabled = selectedDecisions.length !== 2 || game.gameOver || !!game.pendingEvent;
@@ -471,6 +489,15 @@ document.getElementById("decision-groups").addEventListener("click", (e) => {
   render();
 });
 
+
+document.getElementById("decision-groups").addEventListener("toggle", (e) => {
+  const details = e.target.closest("details[data-group]");
+  if (!details) return;
+  const name = details.dataset.group;
+  if (details.open) openDecisionGroups.add(name);
+  else openDecisionGroups.delete(name);
+}, true);
+
 document.getElementById("event-feed").addEventListener("click", (e) => {
   const btn = e.target.closest("button[data-event-option]");
   if (!btn) return;
@@ -484,8 +511,19 @@ document.getElementById("start-game").addEventListener("click", () => {
   const industry = document.getElementById("industry-select").value;
   game = createInitialState(bg, industry);
   selectedDecisions = [];
-  document.getElementById("start-dialog").close();
+  openDecisionGroups = new Set(["增长"]);
+
+  const dialog = document.getElementById("start-dialog");
+  if (typeof dialog.close === "function") dialog.close();
+  dialog.setAttribute("hidden", "true");
+  dialog.style.display = "none";
+
   render();
 });
 
-document.getElementById("start-dialog").showModal();
+const startDialog = document.getElementById("start-dialog");
+if (typeof startDialog.showModal === "function") startDialog.showModal();
+else {
+  startDialog.removeAttribute("hidden");
+  startDialog.style.display = "grid";
+}
