@@ -87,3 +87,14 @@ input[type='range'] { width: 100%; margin-top: 8px; }
 .bad { color: var(--danger); }
 .good { color: var(--good); }
 .warn { color: var(--warn); }
+
+.impact {
+  margin-top: 10px;
+  border: 1px solid #355987;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #0b182a;
+}
+.impact ul { margin: 6px 0 0 18px; padding: 0; }
+.term-box { margin-top: 10px; }
+#exerciseBtn { background: #23466e; }
