@@ -9,40 +9,36 @@
 <body>
   <header class="topbar">
     <h1>ENRON // 数字恐怖游戏</h1>
-    <p class="subtitle">你不是在做账，你在和监狱赔率赛跑。</p>
+    <p class="subtitle">硬核模拟 + 黑色幽默：你管理的不是公司，而是坠落速度。</p>
   </header>
 
   <section class="metrics" id="metrics"></section>
-
   <section class="motto" id="motto">沟通 · 诚信 · 尊重 · 卓越</section>
 
   <main class="layout">
     <section class="panel" id="phasePanel">
       <h2>季度战情</h2>
       <p id="phaseInfo"></p>
-      <p id="pressureInfo"></p>
-      <button id="nextQuarterBtn" disabled>结算并进入下一季度</button>
+      <p id="phaseDesc"></p>
+      <button id="nextQuarterBtn" disabled>发布财报并进入下一季度</button>
     </section>
 
-    <section class="panel" id="mtmPanel">
-      <h2>① MTM 激进会计</h2>
-      <p>印度 20 年供电协议：把未来利润一次性记入当季。</p>
-      <label for="optimism">乐观进度条（50%-95%）</label>
-      <input type="range" id="optimism" min="50" max="95" step="5" value="50" />
-      <p id="optimismText"></p>
-      <button id="applyMtmBtn">锁定 MTM 决策</button>
-    </section>
-
-    <section class="panel" id="auditPanel">
-      <h2>② 安达信公关部</h2>
-      <p>审计师提出困惑，你要如何“沟通”？</p>
-      <div class="choices" id="auditChoices"></div>
+    <section class="panel" id="actionPanel">
+      <h2>核心任务</h2>
+      <p id="actionIntro"></p>
+      <div id="actionArea"></div>
     </section>
 
     <section class="panel" id="callPanel">
-      <h2>③ 财报发布会（Boss战）</h2>
-      <p>分析师提问：为什么利润和现金流完全背离？</p>
+      <h2>分析师电话会议（Boss战）</h2>
+      <p id="callPrompt">你的回答将受 Charisma 加成，但风险也会同步增长。</p>
       <div class="choices" id="callChoices"></div>
+    </section>
+
+    <section class="panel" id="reportPanel">
+      <h2>“年度报告”生成器</h2>
+      <p class="small">每季度自动生成一段商业黑话，用于麻痹投资者。</p>
+      <article id="report"></article>
     </section>
 
     <section class="panel feed">
