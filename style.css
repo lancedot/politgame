@@ -122,3 +122,45 @@ progress { width: 100%; height: 10px; }
 .bad { color: var(--danger); }
 .good { color: var(--good); }
 .warn { color: var(--warn); }
+
+
+#towerWrap {
+  height: 150px;
+  border: 1px solid #2c4668;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #0b182a, #081525);
+  position: relative;
+  overflow: hidden;
+}
+#debtTower {
+  width: 36px;
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  height: 12%;
+  background: #4dd58a;
+  border-radius: 6px 6px 0 0;
+  transition: all .4s ease;
+}
+#debtTower.lean { transform: translateX(-50%) rotate(-7deg); transform-origin: bottom center; }
+
+.ticker {
+  position: sticky;
+  bottom: 0;
+  background: #091528;
+  border-top: 1px solid #2e4b72;
+  overflow: hidden;
+  white-space: nowrap;
+  padding: 6px 0;
+}
+#tickerTrack {
+  display: inline-block;
+  padding-left: 100%;
+  animation: ticker 28s linear infinite;
+  color: #cce1ff;
+  font-size: .86rem;
+}
+@keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-100%);} }
+
+#eventChoices .choice-btn { font-size: .9rem; }

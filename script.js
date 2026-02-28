@@ -23,6 +23,8 @@ const state = {
   auditDone: false,
   callDone: false,
   historyLog: [],
+  speLayers: 0,
+  randomEventResolved: false,
 };
 
 const quarterConfig = {
@@ -74,6 +76,49 @@ const timelineData = {
     impact: "公司申请破产，管理层与审计机构进入历史审判。",
   },
 };
+
+const quarterRandomEvents = {
+  1: {
+    title: "季度突发：分析师灵魂拷问",
+    desc: "高盛分析师当众追问：为什么你们现金流和利润像两家公司？",
+    choices: [
+      { label: "A. 当场怒喷他是笨蛋", effect: (st) => { st.stock -= 4; st.charisma += 4; st.mediaHeat += 6; st.risk += 3; feed("你在电话会上怒喷分析师，短线股价受压但高管气场飙升。", "warn"); } },
+      { label: "B. 邀请他参加游艇派对", effect: (st) => { st.realCash -= 12; st.secAttention = Math.max(0, st.secAttention - 5); st.mediaHeat -= 2; st.risk = Math.max(0, st.risk - 3); feed("游艇香槟奏效，质疑声暂时变成了沉默。", "good"); } },
+    ],
+  },
+  2: {
+    title: "季度突发：评级机构来电",
+    desc: "评级机构要求解释 SPE 担保链的真实敞口。",
+    choices: [
+      { label: "A. 提供部分底稿（相对透明）", effect: (st) => { st.stock -= 2; st.secAttention -= 3; st.risk -= 2; feed("你勉强透明了一次，市场嫌难看但监管情绪回落。", "good"); } },
+      { label: "B. 用术语继续拖延", effect: (st) => { st.stock += 2; st.secAttention += 5; st.risk += 4; feed("你又赢下一次电话会议，也又输掉一点未来。", "warn"); } },
+    ],
+  },
+  3: {
+    title: "季度突发：州政府问责",
+    desc: "停电影响扩大，州政府要求你公开交易记录。",
+    choices: [
+      { label: "A. 甩锅天气与基础设施", effect: (st) => { st.stock += 1; st.mediaHeat += 6; st.whistleblowerPressure += 4; feed("甩锅有效但不持久，媒体开始连夜查档。", "warn"); } },
+      { label: "B. 设立补偿基金平息舆情", effect: (st) => { st.realCash -= 25; st.mediaHeat -= 5; st.secAttention -= 2; feed("花钱买平静，新闻热度短线回落。", "good"); } },
+    ],
+  },
+  4: {
+    title: "季度突发：内部邮件泄露",
+    desc: "员工邮件外泄：‘我们只是把风险推迟到下个季度。’",
+    choices: [
+      { label: "A. 全面否认并威胁起诉", effect: (st) => { st.stock += 1; st.secAttention += 7; st.risk += 6; feed("你强硬否认，市场半信半疑，检察官非常认真。", "bad"); } },
+      { label: "B. 牺牲一名高管止血", effect: (st) => { st.stock -= 2; st.risk -= 3; st.secAttention -= 2; feed("你成功甩出替罪羊，风暴暂时偏航。", "warn"); } },
+    ],
+  },
+};
+
+const tickerPool = [
+  "安然再获‘最具创新企业’提名，董事会表示惊喜并不意外。",
+  "加州宣布进入紧急状态，电价与社交媒体情绪同步飙升。",
+  "传闻 SEC 正在调取某能源巨头账目，发言人回应：纯属常规。",
+  "匿名员工邮件流出：‘我们在管理预期，不是在管理现金。’",
+  "评级机构：结构化工具本身无罪，关键看谁在使用它。",
+];
 
 const analystQuestionBank = {
   conservative: [
@@ -370,6 +415,7 @@ function renderActionPanel() {
         state.mediaHeat += 3;
         bumpCorruption(o.debt > 600 ? 2 : 1);
         state.actionDone = true;
+        state.speLayers += 1;
         state.historyLog.push(`Q2 SPE：${o.debt}M`);
         feed("SPE 接盘完成：问题离开了报表，但没有离开现实。", "warn");
         render();
@@ -593,6 +639,55 @@ function renderCallChoices() {
   });
 }
 
+function renderDebtTower() {
+  const tower = document.getElementById("debtTower");
+  const hint = document.getElementById("towerHint");
+  const h = Math.min(95, 12 + state.speLayers * 26);
+  tower.style.height = `${h}%`;
+  tower.style.background = state.speLayers <= 1 ? "#4dd58a" : state.speLayers === 2 ? "#ffc857" : "#ff6b6b";
+  tower.classList.toggle("lean", state.speLayers >= 3);
+  hint.textContent = state.speLayers === 0
+    ? "目前塔基稳定，你还没开始大规模藏债。"
+    : `已隐藏债务层数：${state.speLayers} 层${state.speLayers >= 3 ? "（塔体开始倾斜）" : ""}`;
+}
+
+function renderTicker() {
+  const track = document.getElementById("tickerTrack");
+  const dynamic = [
+    `Q${state.quarter} 股价 $${state.stock.toFixed(1)}；`,
+    `SEC关注 ${Math.round(state.secAttention)}；`,
+    `隐藏债务层 ${state.speLayers}；`,
+  ];
+  track.textContent = [...tickerPool, ...dynamic].join("  •  ");
+}
+
+function resolveQuarterRandomEvent(onDone) {
+  if (state.randomEventResolved) {
+    onDone();
+    return;
+  }
+  const event = quarterRandomEvents[state.quarter];
+  const modal = document.getElementById("randomEvent");
+  document.getElementById("eventTitle").textContent = event.title;
+  document.getElementById("eventDesc").textContent = event.desc;
+  const root = document.getElementById("eventChoices");
+  root.innerHTML = "";
+  event.choices.forEach((c) => {
+    const btn = document.createElement("button");
+    btn.className = "choice-btn";
+    btn.textContent = c.label;
+    btn.onclick = () => {
+      c.effect(state);
+      state.randomEventResolved = true;
+      modal.classList.add("hidden");
+      render();
+      onDone();
+    };
+    root.appendChild(btn);
+  });
+  modal.classList.remove("hidden");
+}
+
 function exerciseOptions() {
   if (state.exercisedThisQuarter || state.personalOptions <= 0) return;
   const units = Math.min(20, state.personalOptions);
@@ -611,7 +706,7 @@ function exerciseOptions() {
   render();
 }
 
-function settleQuarter() {
+function settleQuarterCore() {
   const operatingCost = 110 + state.quarter * 10;
   const interest = 120 + state.quarter * 15;
   state.realCash -= operatingCost + interest;
@@ -651,8 +746,13 @@ function settleQuarter() {
   state.actionDone = false;
   state.auditDone = false;
   state.callDone = false;
+  state.randomEventResolved = false;
   feed("会后总结：董事会一致认为‘透明度是个可以分期实现的目标’。", "warn");
   render();
+}
+
+function settleQuarter() {
+  resolveQuarterRandomEvent(settleQuarterCore);
 }
 
 function endGame() {
@@ -691,11 +791,13 @@ function render() {
   renderQuarterStatus();
   renderTimeline();
   renderInvestigationPanel();
+  renderDebtTower();
   renderActionPanel();
   renderAuditPanel();
   renderCallChoices();
   const reportNode = document.getElementById("report");
   if (!reportNode.textContent) reportNode.textContent = generateReportText();
+  renderTicker();
 }
 
 document.getElementById("nextQuarterBtn").addEventListener("click", settleQuarter);

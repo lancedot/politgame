@@ -49,6 +49,14 @@
       <p id="investigationHint" class="small"></p>
     </section>
 
+
+    <section class="panel" id="towerPanel">
+      <h2>债务塔（纸牌屋）</h2>
+      <p class="small">每次用 SPE 藏债，塔身升高并变色。塔越高，心理压力越大。</p>
+      <div id="towerWrap"><div id="debtTower"></div></div>
+      <p id="towerHint" class="small"></p>
+    </section>
+
     <section class="panel" id="actionPanel">
       <h2>核心任务</h2>
       <p id="actionIntro"></p>
@@ -73,6 +81,16 @@
       <article id="report"></article>
     </section>
   </main>
+
+  <section class="ticker"><div id="tickerTrack"></div></section>
+
+  <div class="overlay hidden" id="randomEvent">
+    <div class="ending-card">
+      <h2 id="eventTitle"></h2>
+      <p id="eventDesc"></p>
+      <div class="choices" id="eventChoices"></div>
+    </div>
+  </div>
 
   <div class="overlay hidden" id="ending">
     <div class="ending-card">
