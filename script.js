@@ -193,23 +193,23 @@ const analystQuestionBank = {
 const analystOptionBank = {
   1: [
     { key: "q1-tech", label: "“现金流错位是战略前置投入，我们看的是 20 年终局。”", stock: 5, risk: 6, sec: 3, media: 1 },
-    { key: "q1-attack", label: "“提这个问题说明你不了解能源交易。”", stock: 2, risk: 10, sec: 2, media: 6, charisma: 2 },
-    { key: "q1-promise", label: "“下季度我们会再给出双位数增长。”", stock: 10, risk: 14, sec: 3, whistle: 5, paper: 35, forecast: 40, corruption: 1 },
+    { key: "q1-attack", label: "“提这个问题说明你不了解能源交易。”", stock: 2, risk: 8, sec: 2, media: 6, charisma: 2 },
+    { key: "q1-promise", label: "“下季度我们会再给出双位数增长。”", stock: 10, risk: 11, sec: 3, whistle: 5, paper: 35, forecast: 40, corruption: 1 },
   ],
   2: [
     { key: "q2-tech", label: "“SPE 只是资本效率工具，不是风险转移。”", stock: 5, risk: 7, sec: 4, media: 1 },
-    { key: "q2-attack", label: "“把结构金融当作弊，是你模型太落后。”", stock: 3, risk: 10, sec: 2, media: 7, charisma: 2 },
+    { key: "q2-attack", label: "“把结构金融当作弊，是你模型太落后。”", stock: 3, risk: 8, sec: 2, media: 7, charisma: 2 },
     { key: "q2-promise", label: "“资产轻量化会持续抬升 ROE。”", stock: 9, risk: 13, sec: 3, whistle: 4, paper: 28, forecast: 32, corruption: 1 },
   ],
   3: [
     { key: "q3-tech", label: "“价格波动反映供需，我们只是提供流动性。”", stock: 4, risk: 7, sec: 4, media: 2 },
     { key: "q3-attack", label: "“把停电归咎于我们，是把天气写进财报。”", stock: 2, risk: 11, sec: 2, media: 8, charisma: 2 },
-    { key: "q3-promise", label: "“交易部门将继续贡献超额利润。”", stock: 8, risk: 14, sec: 3, whistle: 5, paper: 30, forecast: 35, corruption: 1 },
+    { key: "q3-promise", label: "“交易部门将继续贡献超额利润。”", stock: 8, risk: 11, sec: 3, whistle: 5, paper: 30, forecast: 35, corruption: 1 },
   ],
   4: [
     { key: "q4-tech", label: "“股价波动不改变基本面，我们现金部署充分。”", stock: 4, risk: 8, sec: 5, media: 2 },
     { key: "q4-attack", label: "“这是情绪问题，不是经营问题。”", stock: 2, risk: 11, sec: 3, media: 8, charisma: 2 },
-    { key: "q4-promise", label: "“资本计划将覆盖所有短期压力。”", stock: 7, risk: 15, sec: 4, whistle: 5, paper: 25, forecast: 30, corruption: 1 },
+    { key: "q4-promise", label: "“资本计划将覆盖所有短期压力。”", stock: 7, risk: 12, sec: 4, whistle: 5, paper: 25, forecast: 30, corruption: 1 },
   ],
 };
 
@@ -270,23 +270,32 @@ function updateMarketDerived() {
 
 function getAnalystRatings() {
   const q = state.quarter;
-  const gs = q >= 1 ? (state.mtmMode === "aggressive" ? "[高盛] 强力买入 (Strong Buy)" : "[高盛] 买入 (Buy)") : "[高盛] 观望";
-  const ml = q >= 2 ? (state.risk < 55 ? "[美林] 行业首选 (Top Pick)" : "[美林] 增持 (Outperform)") : "[美林] 覆盖观察中";
-  const jpm = q >= 4 ? (state.secAttention > 75 ? "[摩根大通] 减持 (Underweight)" : "[摩根大通] 维持持有 (Hold)") : "[摩根大通] 暂无更新";
-  return [gs, ml, jpm];
+  return [
+    {
+      bank: "高盛",
+      rating: q >= 1 ? (state.mtmMode === "aggressive" ? "强力买入 (Strong Buy)" : "买入 (Buy)") : "覆盖中",
+      tone: state.mtmMode === "aggressive" ? "buy" : "top",
+    },
+    {
+      bank: "美林",
+      rating: q >= 2 ? (state.risk < 55 ? "行业首选 (Top Pick)" : "增持 (Outperform)") : "覆盖观察中",
+      tone: q >= 2 && state.risk < 55 ? "top" : "hold",
+    },
+    {
+      bank: "摩根大通",
+      rating: q >= 4 ? (state.secAttention > 80 ? "减持 (Underweight)" : "维持持有 (Hold)") : "暂无更新",
+      tone: q >= 4 && state.secAttention > 80 ? "sell" : "hold",
+    },
+  ];
 }
 
 function renderRatings() {
   const root = document.getElementById("ratings");
   if (!root) return;
   root.innerHTML = "";
-  getAnalystRatings().forEach((r) => {
+  getAnalystRatings().forEach((item) => {
     const li = document.createElement("li");
-    let cls = "rating-hold";
-    if (r.includes("Strong Buy") || r.includes("Buy") || r.includes("Top Pick")) cls = "rating-buy";
-    if (r.includes("Top Pick")) cls = "rating-top";
-    if (r.includes("Underweight") || r.includes("减持")) cls = "rating-sell";
-    li.innerHTML = `<span>${r.split(']')[0]}]</span><span class="rating-tag ${cls}">${r.split('] ')[1] || ''}</span>`;
+    li.innerHTML = `<span>[${item.bank}]</span><span class="rating-tag rating-${item.tone}">${item.rating}</span>`;
     root.appendChild(li);
   });
 }
@@ -362,7 +371,7 @@ function renderInvestigationPanel() {
 function triggerSpecialEvents() {
   if (state.whistleblowerPressure >= 62 && !state.triggeredEvents.has("whistle")) {
     state.triggeredEvents.add("whistle");
-    state.risk += 5;
+    state.risk += 3;
     feed("匿名内部备忘录外泄：‘我们正在把亏损藏在叙事里。’", "warn");
     state.historyLog.push("吹哨者事件触发");
   }
@@ -485,7 +494,7 @@ function renderActionPanel() {
       <div class="choices" id="speChoices"></div>
     `;
     const opts = [
-      { label: "转移 $400M（保守洗表）", debt: 400, risk: 10, stock: 8, sec: 4, whistle: 3 },
+      { label: "转移 $400M（保守洗表）", debt: 400, risk: 8, stock: 8, sec: 4, whistle: 3 },
       { label: "转移 $1000M（激进洗表）", debt: 1000, risk: 22, stock: 18, sec: 9, whistle: 7 },
     ];
     const holder = document.getElementById("speChoices");
@@ -820,7 +829,7 @@ function handleCashCrisisIfNeeded(onDone) {
       label: "通过 SPE 过桥融资（历史原型：表外结构融资）｜现金 +$180M / 风险 +12",
       apply: () => {
         state.realCash += 180;
-        state.risk += 12;
+        state.risk += 9;
         state.secAttention += 8;
         state.whistleblowerPressure += 6;
         state.lastEventSummary = "delay";
@@ -846,6 +855,12 @@ function handleCashCrisisIfNeeded(onDone) {
     btn.textContent = opt.label;
     btn.onclick = () => {
       opt.apply();
+      if (state.realCash < 0) {
+        document.getElementById("cashCrisisDesc").textContent = `融资后现金仍为 ${formatMoney(state.realCash)}，请继续选择救火方案。`;
+        root.innerHTML = "";
+        handleCashCrisisIfNeeded(onDone);
+        return;
+      }
       modal.classList.add("hidden");
       onDone();
     };
@@ -867,7 +882,7 @@ function settleQuarterPostFinance() {
     const gap = state.marketExpectedGain - state.paperGain;
     const drop = Math.max(6, Math.min(14, gap / 25));
     state.stock -= drop;
-    state.risk += 5;
+    state.risk += 3;
     state.mediaHeat += 4;
     feed(`披露利润低于市场预期，股价下跌 ${drop.toFixed(1)} 点。`, "warn");
   } else {
@@ -876,8 +891,8 @@ function settleQuarterPostFinance() {
   }
 
   if (state.auditIndependence < 45) {
-    state.risk += 3;
-    state.secAttention += 4;
+    state.risk += 2;
+    state.secAttention += 3;
     feed("审计独立性过低触发反噬：监管把‘咨询关系’写进问询。", "bad");
   }
 
@@ -886,7 +901,7 @@ function settleQuarterPostFinance() {
   state.paperGain *= 0.7;
   state.forecastPaperGain = state.paperGain + 20;
   state.stock = Math.max(2, state.stock);
-  state.risk = Math.max(0, state.risk - 4);
+  state.risk = Math.max(0, state.risk - 7);
   state.risk = Math.max(0, Math.min(115, state.risk));
   clampInvestigation();
   document.getElementById("report").textContent = generateReportText();
@@ -920,9 +935,9 @@ function endGame() {
   state.prisonYears = Math.max(0, Math.round((state.risk * 0.18) + (state.secAttention > 85 ? 8 : 0) - (state.privateAccount / 80)));
 
   let ending;
-  if (state.risk >= 95 || state.stock < 25 || state.secAttention > 85) {
+  if (state.risk >= 108 || state.stock < 18 || state.secAttention > 92) {
     ending = ["结局A：历史线", "股价崩塌、调查落地、法庭直播。你终于获得稳定作息——在司法系统里。"];
-  } else if (state.privateAccount >= 320 && state.risk < 90 && state.secAttention < 80) {
+  } else if (state.privateAccount >= 180 && state.risk < 85 && state.secAttention < 78) {
     ending = ["结局B：完美犯罪", "你在风暴前完成离场，朋友圈只剩海岛、雪茄和合规声明。"];
   } else {
     ending = ["结局C：行业精英", "公司倒下了，但你把锅精确分配给他人，并成功转任治理顾问。"];
