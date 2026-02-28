@@ -1,7 +1,6 @@
 :root {
   color-scheme: dark;
   --bg: #0a1022;
-  --bg-soft: #121a33;
   --glass: rgba(255, 255, 255, 0.08);
   --line: rgba(255, 255, 255, 0.14);
   --text: #e8ecff;
@@ -19,42 +18,32 @@ body {
   background: radial-gradient(circle at 20% 0%, #1b2f64 0%, var(--bg) 40%, #050812 100%);
   min-height: 100vh;
 }
-.bg-glow {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background: radial-gradient(circle at 70% 20%, rgba(124, 166, 255, 0.25), transparent 40%);
-}
-.topbar {
-  margin: 20px;
-  padding: 18px 24px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
+.bg-glow { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(circle at 70% 20%, rgba(124, 166, 255, 0.25), transparent 40%); }
+.topbar { margin: 20px; padding: 18px 24px; display: flex; justify-content: space-between; align-items: center; }
 .topbar h1 { margin: 0; font-size: 1.4rem; }
 .topbar p { margin: 4px 0 0; color: var(--muted); }
 .meta { text-align: right; color: var(--muted); }
-.glass {
-  background: var(--glass);
-  border: 1px solid var(--line);
-  backdrop-filter: blur(10px);
-  border-radius: 14px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.25);
-}
+.glass { background: var(--glass); border: 1px solid var(--line); backdrop-filter: blur(10px); border-radius: 14px; box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
 .layout {
   display: grid;
   grid-template-columns: 1fr 2fr 1.2fr;
+  grid-template-areas:
+    "triad statements decisions"
+    "ipo statements decisions"
+    "market statements logs";
   gap: 16px;
   padding: 0 20px 20px;
 }
 .panel { padding: 16px; }
-.panel h2 { margin: 0 0 14px; font-size: 1rem; }
-.triad, .logs { grid-column: 1; }
-.statements { grid-column: 2; grid-row: 1 / span 2; }
-.decisions { grid-column: 3; grid-row: 1 / span 2; }
-.tabs { display: flex; gap: 8px; margin-bottom: 12px; }
-.tabs button, .bg-buttons button, #end-turn {
+.panel h2 { margin: 0 0 12px; font-size: 1rem; }
+.triad { grid-area: triad; }
+.ipo-goal { grid-area: ipo; }
+.market-panel { grid-area: market; }
+.statements { grid-area: statements; }
+.decisions { grid-area: decisions; }
+.logs { grid-area: logs; }
+.tabs { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+.tabs button, .bg-buttons button, #end-turn, .decision button {
   border: 1px solid var(--line);
   background: rgba(255,255,255,0.06);
   color: var(--text);
@@ -66,29 +55,33 @@ body {
 .table { width: 100%; border-collapse: collapse; }
 .table td { padding: 8px 6px; border-bottom: 1px solid rgba(255,255,255,0.06); }
 .table td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
-.metric { display: flex; justify-content: space-between; margin: 8px 0; }
-.badge {
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 12px;
-}
+.metric { display: flex; justify-content: space-between; margin: 8px 0; gap: 8px; }
+.metric small { color: var(--muted); }
+.badge { padding: 2px 8px; border-radius: 999px; font-size: 12px; }
 .badge.good { background: rgba(89,216,161,0.2); color: var(--good); }
 .badge.warn { background: rgba(246,196,83,0.2); color: var(--warn); }
 .badge.bad { background: rgba(255,107,122,0.2); color: var(--bad); }
-.decision {
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 12px;
-  padding: 10px;
-  margin-bottom: 10px;
-}
+.decision-tip { color: var(--muted); margin-bottom: 10px; font-size: 13px; }
+.decision { border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 10px; margin-bottom: 10px; }
+.decision.selected { border-color: var(--accent); background: rgba(124,166,255,0.12); }
 .decision h4 { margin: 0 0 6px; }
 .decision p { margin: 0 0 8px; color: var(--muted); font-size: 13px; }
+.decision button { width: 100%; }
 .primary { width: 100%; margin-top: 8px; background: linear-gradient(120deg, #6f8fff, #7ca6ff); color: #081023; font-weight: 700; }
-#logs { max-height: 240px; overflow: auto; color: var(--muted); display: flex; flex-direction: column; gap: 8px; }
+.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+#logs { max-height: 250px; overflow: auto; color: var(--muted); display: flex; flex-direction: column; gap: 8px; }
 dialog { border: none; padding: 16px; width: 360px; }
 dialog::backdrop { background: rgba(0,0,0,0.45); }
 .bg-buttons { display: grid; gap: 10px; }
 @media (max-width: 1100px) {
-  .layout { grid-template-columns: 1fr; }
-  .triad,.statements,.decisions,.logs { grid-column: auto; grid-row: auto; }
+  .layout {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "triad"
+      "ipo"
+      "market"
+      "statements"
+      "decisions"
+      "logs";
+  }
 }
