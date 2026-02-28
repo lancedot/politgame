@@ -36,6 +36,7 @@ const state = {
   lobbyingUsedThisQuarter: false,
   speHiddenDebt: 0,
   tipShredBoost: false,
+  rotationDoorShield: false,
   debt: 260,
   totalAssets: 1400,
   prevStock: 78,
@@ -132,7 +133,8 @@ const quarterRandomEvents = {
     title: "季度突发：加州电网套利",
     desc: "西海岸电力需求激增。你可以通过人为制造局部停电，套取 10 倍电价差。",
     choices: [
-      { label: "【执行‘死星’计划】（账面利润 +$500M，风险 +30）", effect: (st) => { st.paperGain += 500; st.forecastPaperGain += 120; st.realCash += 180; st.risk += 30; st.secAttention += 10; st.mediaHeat += 12; st.whistleblowerPressure += 8; const msg = "交易台欢呼‘死星’计划大获全胜，州政府与检察官同步上线。"; feed(msg, "bad"); return msg; } },
+      { label: "A. 执行‘死星’计划（结果：账面利润 +$500M，现金 +$180M，风险 +30，SEC +10）", effect: (st) => { st.paperGain += 500; st.forecastPaperGain += 120; st.realCash += 180; st.risk += 30; st.secAttention += 10; st.mediaHeat += 12; st.whistleblowerPressure += 8; const msg = "交易台欢呼‘死星’计划大获全胜，州政府与检察官同步上线。"; feed(msg, "bad"); return msg; } },
+      { label: "B. 维持供电并签长期对冲（结果：账面利润 +$140M，现金 +$60M，风险 +8，SEC +2）", effect: (st) => { st.paperGain += 140; st.realCash += 60; st.risk += 8; st.secAttention += 2; st.mediaHeat += 2; const msg = "你选择克制套利，利润没那么炸裂，但舆情与监管都相对可控。"; feed(msg, "good"); return msg; } },
     ],
   },
   4: {
@@ -376,16 +378,20 @@ function renderMetrics() {
   compareEl.className = `small ${gap >= 0 ? "good" : "bad"}`;
   compareEl.textContent = `预期对比：你承诺 ${formatMoney(state.forecastPaperGain)}，市场要求 ${formatMoney(state.marketExpectedGain)}，差额 ${formatMoney(gap)}。`;
 
+  const previewUnits = Math.min(12, state.personalOptions);
+  const previewGross = previewUnits * state.stock * 0.02;
+  const previewCap = Math.max(6, state.realCash * 0.18);
+  const previewProceeds = Math.min(previewGross, previewCap);
   document.getElementById("optionInfo").textContent = state.exercisedThisQuarter
     ? "本季度已完成期权变现。"
-    : "可在季度末按当前股价执行一次期权变现。";
+    : `个人期权变现预览：${previewUnits} 份，预计到账 ${formatMoney(previewProceeds)}，基础风险 +3。`;
 
   const lobbyBtn = document.getElementById("lobbyingBtn");
   if (lobbyBtn) {
-    lobbyBtn.disabled = state.lobbyingUsedThisQuarter || state.realCash < 120;
+    lobbyBtn.disabled = state.lobbyingUsedThisQuarter;
     lobbyBtn.textContent = state.lobbyingUsedThisQuarter
       ? "公关与游说（本季度已执行）"
-      : "公关与游说（现金换风险）";
+      : "公关与游说";
   }
 
   const decay = Math.min(1, (100 - state.morality) / 100);
@@ -681,7 +687,7 @@ function renderAuditPanel() {
     ${renderImpact("选择前影响预览", [
       "解释结构：风险 +10，审计独立性不变",
       "咨询费：现金 -$8M，风险 -14，审计独立性 -15",
-      "旋转门：现金 -$15M，风险 -20，审计独立性 -30，爆雷惩罚加剧",
+      "旋转门：现金 -$15M，风险 -20，审计独立性 -30，并获得‘监管缓冲’（后续 SEC 增幅减弱）",
     ])}
     ${renderTermButtons(["旋转门"])}
     <div class="choices" id="auditOptionList"></div>
@@ -725,6 +731,7 @@ function renderAuditPanel() {
         state.historyLog.push("审计：旋转门");
         state.lastAuditSummary = "旋转门";
         state.rotationDoorUsed = true;
+        state.rotationDoorShield = true;
       },
     },
   ];
@@ -832,7 +839,7 @@ function resolveQuarterRandomEvent(onDone) {
       const keyMap = {
         1: ["insult", "yacht"],
         2: ["transparent", "delay"],
-        3: ["deadstar"],
+        3: ["deadstar", "fund"],
         4: ["deny", "scapegoat"],
       };
       state.lastEventSummary = keyMap[state.quarter][idx];
@@ -883,7 +890,7 @@ function exerciseOptions() {
 
 function runLobbying() {
   if (state.lobbyingUsedThisQuarter) return;
-  const spend = Math.min(220, Math.max(120, state.realCash * 0.22));
+  const spend = Math.min(220, Math.max(90, state.realCash * 0.2));
   if (state.realCash < spend) {
     feed("公关与游说失败：现金不足以打通关键走廊。", "warn");
     return;
@@ -994,7 +1001,7 @@ function settleQuarterPostFinance() {
 
   if (state.auditIndependence < 45) {
     state.risk += 2;
-    state.secAttention += 3;
+    state.secAttention += state.rotationDoorShield ? 1.5 : 3;
     feed("审计独立性过低触发反噬：监管把‘咨询关系’写进问询。", "bad");
   }
 
