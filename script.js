@@ -29,6 +29,9 @@ const state = {
   lastEventSummary: "",
   randomEventResolved: false,
   tickerClock: 0,
+  mtmMode: "neutral",
+  prisonYears: 0,
+  quoteShownForQuarter: 0,
 };
 
 const quarterConfig = {
@@ -52,6 +55,25 @@ const quarterConfig = {
     desc: "股价回落，担保链颤抖，你要决定是体面还是迅速离场。",
     intro: "Q4 决议：套现、灭证与甩锅，哪种组合最像‘长期主义’。",
   },
+};
+
+const quarterQuotes = {
+  1: [
+    '“我们不是一家能源公司，我们是一家改变世界的公司。” —— 杰夫·斯基林',
+    '“如果你看不懂我们的财报，那是你的问题，不是我们的。” —— 管理层内部口吻（讽刺化复刻）',
+  ],
+  2: [
+    '“复杂是竞争优势，透明是竞争劣势。” —— 华尔街黑话精选',
+    '“只要故事足够大，脚注就没人看。” —— 路演备忘录（讽刺）',
+  ],
+  3: [
+    '“市场没有情绪，只有可交易的波动。” —— 交易部门口号',
+    '“危机也是一种盈利模型。” —— 会议纪要边角料',
+  ],
+  4: [
+    '“我们对公司前景保持坚定信心。” —— 同日高管减持记录',
+    '“司法是长期问题，流动性是今晚问题。” —— 走廊对话（讽刺）',
+  ],
 };
 
 const timelineData = {
@@ -246,6 +268,39 @@ function updateMarketDerived() {
   state.marketExpectedGain = 108 + state.quarter * 20 + state.fraudCount * 4;
 }
 
+function getAnalystRatings() {
+  const q = state.quarter;
+  const gs = q >= 1 ? (state.mtmMode === "aggressive" ? "[高盛] 强力买入 (Strong Buy)" : "[高盛] 买入 (Buy)") : "[高盛] 观望";
+  const ml = q >= 2 ? (state.risk < 55 ? "[美林] 行业首选 (Top Pick)" : "[美林] 增持 (Outperform)") : "[美林] 覆盖观察中";
+  const jpm = q >= 4 ? (state.secAttention > 75 ? "[摩根大通] 减持 (Underweight)" : "[摩根大通] 维持持有 (Hold)") : "[摩根大通] 暂无更新";
+  return [gs, ml, jpm];
+}
+
+function renderRatings() {
+  const root = document.getElementById("ratings");
+  if (!root) return;
+  root.innerHTML = "";
+  getAnalystRatings().forEach((r) => {
+    const li = document.createElement("li");
+    let cls = "rating-hold";
+    if (r.includes("Strong Buy") || r.includes("Buy") || r.includes("Top Pick")) cls = "rating-buy";
+    if (r.includes("Top Pick")) cls = "rating-top";
+    if (r.includes("Underweight") || r.includes("减持")) cls = "rating-sell";
+    li.innerHTML = `<span>${r.split(']')[0]}]</span><span class="rating-tag ${cls}">${r.split('] ')[1] || ''}</span>`;
+    root.appendChild(li);
+  });
+}
+
+function maybeShowQuarterQuote() {
+  if (state.quoteShownForQuarter === state.quarter) return;
+  const quotes = quarterQuotes[state.quarter] || quarterQuotes[1];
+  const quote = quotes[Math.floor(Math.random() * quotes.length)];
+  const modal = document.getElementById("quoteModal");
+  document.getElementById("quoteText").textContent = quote;
+  modal.classList.remove("hidden");
+  state.quoteShownForQuarter = state.quarter;
+}
+
 function renderMetrics() {
   updateMarketDerived();
   const list = [
@@ -407,6 +462,7 @@ function renderActionPanel() {
       state.secAttention += Math.max(1, (optimism - 50) * 0.12);
       state.mediaHeat += Math.max(1, (optimism - 55) * 0.1);
       state.firstAction = optimism >= 85 ? "aggressive" : "conservative";
+      state.mtmMode = optimism >= 85 ? "aggressive" : "conservative";
       bumpCorruption(optimism >= 90 ? 2 : 1);
       state.actionDone = true;
       state.historyLog.push(`Q1 MTM：${optimism}%`);
@@ -794,6 +850,8 @@ function endGame() {
   const debrief = document.getElementById("endingDebrief");
   const score = document.getElementById("endingScore");
 
+  state.prisonYears = Math.max(0, Math.round((state.risk * 0.18) + (state.secAttention > 85 ? 8 : 0) - (state.privateAccount / 80)));
+
   let ending;
   if (state.risk >= 95 || state.stock < 25 || state.secAttention > 85) {
     ending = ["结局A：历史线", "股价崩塌、调查落地、法庭直播。你终于获得稳定作息——在司法系统里。"];
@@ -803,18 +861,25 @@ function endGame() {
     ending = ["结局C：行业精英", "公司倒下了，但你把锅精确分配给他人，并成功转任治理顾问。"];
   }
 
+  const satiricalJudge = state.privateAccount >= 100 && state.prisonYears === 0
+    ? "讽刺评语：你就是现代金融教父，在避税天堂过上了‘ESG 讲师’生活。"
+    : state.privateAccount <= 5 && state.prisonYears >= 20
+      ? "讽刺评语：你是个拙劣的骗子，钱没转出去，罪倒是全额到账。"
+      : `讽刺评语：资产 ${formatMoney(state.privateAccount)}，入狱 ${state.prisonYears} 年——华尔街把这叫‘风险定价’。`;
+
   const lines = [
     `会计策略：${state.historyLog.find((x) => x.startsWith("Q1 MTM")) || "保守披露"}`,
     `审计关系：${state.historyLog.find((x) => x.startsWith("审计")) || "常规沟通"}`,
     `市场叙事：${state.historyLog.find((x) => x.startsWith("会议")) || "低调回应"}`,
     `个人套现：${state.historyLog.filter((x) => x.startsWith("期权变现")).join("、") || "未执行"}`,
-    `历史映射：你最接近 ${state.auditIndependence < 40 ? "安达信独立性失守线" : state.firstAction === "aggressive" ? "Skilling式激进叙事线" : "Fastow式结构化延迟线"}`,
+    `第四季度大审判：资产 ${formatMoney(state.privateAccount)} / 入狱 ${state.prisonYears} 年`,
+    satiricalJudge,
   ];
 
   title.textContent = ending[0];
   desc.textContent = ending[1];
   debrief.innerHTML = `<h3>结局复盘</h3><ul>${lines.map((l) => `<li>${l}</li>`).join("")}</ul>`;
-  score.textContent = `私人账户 ${formatMoney(state.privateAccount)} · 风险 ${Math.round(state.risk)} · 股价 $${state.stock.toFixed(1)} · SEC ${Math.round(state.secAttention)} · 剩余期权 ${state.personalOptions.toFixed(0)}份`;
+  score.textContent = `私人账户 ${formatMoney(state.privateAccount)} · 风险 ${Math.round(state.risk)} · 股价 $${state.stock.toFixed(1)} · SEC ${Math.round(state.secAttention)} · 入狱 ${state.prisonYears} 年`;
   overlay.classList.remove("hidden");
 }
 
@@ -827,6 +892,7 @@ function ensureInteractivePanels() {
 
 function render() {
   renderMetrics();
+  renderRatings();
   renderQuarterStatus();
   renderTimeline();
   renderInvestigationPanel();
@@ -837,10 +903,12 @@ function render() {
   const reportNode = document.getElementById("report");
   if (!reportNode.textContent) reportNode.textContent = generateReportText();
   renderTicker();
+  maybeShowQuarterQuote();
 }
 
 document.getElementById("nextQuarterBtn").addEventListener("click", settleQuarter);
 document.getElementById("exerciseBtn").addEventListener("click", exerciseOptions);
+document.getElementById("closeQuoteBtn").addEventListener("click", () => document.getElementById("quoteModal").classList.add("hidden"));
 
 feed("议程启动：利润可以先到，后果会准时到。", "warn");
 feed("提示：每个选项都给出‘现实后果标签’，请留意 SEC、媒体、吹哨三条线。", "good");

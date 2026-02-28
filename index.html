@@ -52,6 +52,12 @@
 
     
 
+
+    <section class="panel" id="ratingPanel">
+      <h2>分析师评级（非官方）</h2>
+      <ul id="ratings" class="rating-list"></ul>
+    </section>
+
     <section class="panel" id="actionPanel">
       <h2>核心任务</h2>
       <p id="actionIntro"></p>
@@ -84,6 +90,15 @@
       <h2 id="eventTitle"></h2>
       <p id="eventDesc"></p>
       <div class="choices" id="eventChoices"></div>
+    </div>
+  </div>
+
+
+  <div class="overlay hidden" id="quoteModal">
+    <div class="ending-card quote-card">
+      <h2>季度语录</h2>
+      <p id="quoteText"></p>
+      <button id="closeQuoteBtn">继续开会</button>
     </div>
   </div>
 
