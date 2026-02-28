@@ -28,6 +28,7 @@ const state = {
   lastCallSummary: "",
   lastEventSummary: "",
   randomEventResolved: false,
+  tickerClock: 0,
 };
 
 const quarterConfig = {
@@ -654,6 +655,7 @@ function renderCallChoices() {
 
 function renderTicker() {
   const track = document.getElementById("tickerTrack");
+  if (!track) return;
   const base = quarterTickerBase[state.quarter] || quarterTickerBase[1];
   const mapped = [
     optionTickerMap[state.lastEventSummary],
@@ -666,7 +668,10 @@ function renderTicker() {
     state.lastActionSummary ? `动作：${state.lastActionSummary}` : "动作：待决策",
     state.lastEventSummary ? `事件：${state.lastEventSummary}` : "事件：待触发",
   ];
-  track.textContent = [...base, ...mapped, ...dynamic].join("  •  ");
+  const merged = [...base, ...mapped, ...dynamic];
+  const shift = state.tickerClock % Math.max(1, merged.length);
+  const rotated = merged.slice(shift).concat(merged.slice(0, shift));
+  track.textContent = rotated.join("  •  ");
 }
 
 function resolveQuarterRandomEvent(onDone) {
@@ -813,12 +818,20 @@ function endGame() {
   overlay.classList.remove("hidden");
 }
 
+function ensureInteractivePanels() {
+  const actionRoot = document.getElementById("actionArea");
+  if (!state.actionDone && actionRoot && actionRoot.querySelectorAll("button").length === 0) {
+    renderActionPanel();
+  }
+}
+
 function render() {
   renderMetrics();
   renderQuarterStatus();
   renderTimeline();
   renderInvestigationPanel();
   renderActionPanel();
+  ensureInteractivePanels();
   renderAuditPanel();
   renderCallChoices();
   const reportNode = document.getElementById("report");
@@ -832,3 +845,5 @@ document.getElementById("exerciseBtn").addEventListener("click", exerciseOptions
 feed("议程启动：利润可以先到，后果会准时到。", "warn");
 feed("提示：每个选项都给出‘现实后果标签’，请留意 SEC、媒体、吹哨三条线。", "good");
 render();
+
+setInterval(() => { state.tickerClock += 1; renderTicker(); }, 5000);
