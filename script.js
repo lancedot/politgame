@@ -94,6 +94,10 @@ function renderQuarterStatus() {
   document.getElementById("phaseInfo").textContent = q.name;
   document.getElementById("phaseDesc").textContent = q.desc;
   document.getElementById("actionIntro").textContent = q.intro;
+  const hint = state.actionDone && state.callDone
+    ? "本季度操作完成：点击下方按钮发布财报进入下一季度。"
+    : "先完成【核心任务】和【电话会议】两项操作，才能推进季度。";
+  document.getElementById("operationHint").textContent = hint;
   document.getElementById("nextQuarterBtn").disabled = !(state.actionDone && state.callDone);
 }
 
@@ -106,7 +110,7 @@ function renderActionPanel() {
       <label for="optimism">乐观预测滑块（50%-100%）</label>
       <input type="range" id="optimism" min="50" max="100" step="5" value="65" />
       <p id="optimismPreview"></p>
-      <button id="actionBtn">执行 MTM 魔法</button>
+      <button id="actionBtn" ${state.actionDone ? 'disabled' : ''}>执行 MTM 魔法</button>
     `;
     const slider = document.getElementById("optimism");
     const preview = document.getElementById("optimismPreview");
@@ -345,7 +349,8 @@ function render() {
   renderQuarterStatus();
   renderActionPanel();
   renderCallChoices();
-  document.getElementById("report").textContent ||= generateReportText();
+  const reportNode = document.getElementById("report");
+  if (!reportNode.textContent) reportNode.textContent = generateReportText();
   document.getElementById("nextQuarterBtn").disabled = !(state.actionDone && state.callDone);
 }
 
