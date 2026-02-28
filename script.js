@@ -32,6 +32,7 @@ const state = {
   mtmMode: "neutral",
   prisonYears: 0,
   quoteShownForQuarter: 0,
+  rotationDoorUsed: false,
   debt: 260,
   totalAssets: 1400,
   prevStock: 78,
@@ -120,8 +121,8 @@ const quarterRandomEvents = {
     title: "季度突发：评级机构来电",
     desc: "评级机构要求你解释 SPE 担保链的真实敞口。",
     choices: [
-      { label: "A. 递交部分底稿，换取喘息", effect: (st) => { st.stock -= 2; st.secAttention = Math.max(0, st.secAttention - 3); st.risk = Math.max(0, st.risk - 2); const msg = "你勉强透明一次，市场嫌难看，但监管火气暂时下降。"; feed(msg, "good"); return msg; } },
-      { label: "B. 用‘结构优化’术语继续拖延", effect: (st) => { st.stock += 2; st.secAttention += 5; st.risk += 4; const msg = "你又赢下一场电话会，也又输掉一截未来。"; feed(msg, "warn"); return msg; } },
+      { label: "A. 递交部分底稿，换取喘息（结果：股价 -2，SEC -3，风险 -2）", effect: (st) => { st.stock -= 2; st.secAttention = Math.max(0, st.secAttention - 3); st.risk = Math.max(0, st.risk - 2); const msg = "你勉强透明一次，市场嫌难看，但监管火气暂时下降。"; feed(msg, "good"); return msg; } },
+      { label: "B. 用‘结构优化’术语继续拖延（结果：股价 +2，SEC +5，风险 +4）", effect: (st) => { st.stock += 2; st.secAttention += 5; st.risk += 4; const msg = "你又赢下一场电话会，也又输掉一截未来。"; feed(msg, "warn"); return msg; } },
     ],
   },
   3: {
@@ -135,8 +136,8 @@ const quarterRandomEvents = {
     title: "季度突发：内部邮件泄露",
     desc: "员工邮件外泄：‘我们只是把风险推迟到下个季度。’",
     choices: [
-      { label: "A. 全面否认并威胁起诉", effect: (st) => { st.stock += 1; st.secAttention += 7; st.risk += 6; const msg = "你成功把语气拉满，也把检察官的兴趣拉满。"; feed(msg, "bad"); return msg; } },
-      { label: "B. 牺牲一位高管止血", effect: (st) => { st.stock -= 2; st.risk = Math.max(0, st.risk - 3); st.secAttention = Math.max(0, st.secAttention - 2); const msg = "替罪羊出列，风暴短暂停顿，董事会掌声稀稀拉拉。"; feed(msg, "warn"); return msg; } },
+      { label: "A. 全面否认并威胁起诉（结果：股价 +1，SEC +7，风险 +6）", effect: (st) => { st.stock += 1; st.secAttention += 7; st.risk += 6; const msg = "你成功把语气拉满，也把检察官的兴趣拉满。"; feed(msg, "bad"); return msg; } },
+      { label: "B. 牺牲一位高管止血（结果：股价 -2，风险 -3，SEC -2）", effect: (st) => { st.stock -= 2; st.risk = Math.max(0, st.risk - 3); st.secAttention = Math.max(0, st.secAttention - 2); const msg = "替罪羊出列，风暴短暂停顿，董事会掌声稀稀拉拉。"; feed(msg, "warn"); return msg; } },
     ],
   },
 };
@@ -685,7 +686,8 @@ function renderAuditPanel() {
       },
     },
     {
-      label: "高薪挖角审计合伙人（旋转门）",
+      label: "高薪挖角审计合伙人（旋转门，仅一次）",
+      disabled: state.rotationDoorUsed,
       apply: () => {
         state.realCash -= 15;
         state.risk = Math.max(0, state.risk - 20);
@@ -696,6 +698,7 @@ function renderAuditPanel() {
         feed("旋转门启动：监督者进了管理层，独立性顺手下班。", "warn");
         state.historyLog.push("审计：旋转门");
         state.lastAuditSummary = "旋转门";
+        state.rotationDoorUsed = true;
       },
     },
   ];
@@ -705,7 +708,7 @@ function renderAuditPanel() {
     const btn = document.createElement("button");
     btn.className = "choice-btn";
     btn.textContent = o.label;
-    btn.disabled = state.auditDone;
+    btn.disabled = state.auditDone || !!o.disabled;
     btn.onclick = () => {
       if (state.auditDone) return;
       o.apply();
@@ -771,10 +774,10 @@ function renderTicker() {
   const dynamic = [
     `Q${state.quarter} 股价 $${state.stock.toFixed(1)}`,
     `SEC关注 ${Math.round(state.secAttention)}`,
-    state.lastActionSummary ? `动作：${state.lastActionSummary}` : "动作：待决策",
-    state.lastEventSummary ? `事件：${state.lastEventSummary}` : "事件：待触发",
+    state.lastActionSummary ? `动作：${state.lastActionSummary}` : null,
+    state.lastEventSummary ? `事件：${state.lastEventSummary}` : null,
   ];
-  const merged = [...base, ...mapped, ...dynamic];
+  const merged = [...base, ...mapped, ...dynamic.filter(Boolean)];
   const shift = state.tickerClock % Math.max(1, merged.length);
   const rotated = merged.slice(shift).concat(merged.slice(0, shift));
   track.textContent = rotated.join("  •  ");
@@ -992,7 +995,7 @@ function endGame() {
   let ending;
   if (state.risk > 90 || state.secAttention > 98 || state.stock < 10) {
     ending = ["F级：替罪羔羊", "法官判处你24年徒刑。你成为了贪婪的代名词，画像被印进所有商学院反面教材。"];
-  } else if (state.risk < 40 && state.privateAccount > 500) {
+  } else if (state.risk < 50 && state.privateAccount > 380 && state.secAttention < 90) {
     ending = ["S级：金融教父", "你成功在雪崩前退休。现在你在开曼群岛游艇上看着安然破产新闻，彷佛这只是别人的故事。"];
   } else if (state.risk < 70 && state.privateAccount > 100) {
     ending = ["A级：优雅脱身", "你名义上被判两年，但在精英律师团操作下只剩社区服务；海外账户足够你后半生无忧。"];
