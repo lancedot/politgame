@@ -23,7 +23,10 @@ const state = {
   auditDone: false,
   callDone: false,
   historyLog: [],
-  speLayers: 0,
+  lastActionSummary: "",
+  lastAuditSummary: "",
+  lastCallSummary: "",
+  lastEventSummary: "",
   randomEventResolved: false,
 };
 
@@ -82,43 +85,73 @@ const quarterRandomEvents = {
     title: "季度突发：分析师灵魂拷问",
     desc: "高盛分析师当众追问：为什么你们现金流和利润像两家公司？",
     choices: [
-      { label: "A. 当场怒喷他是笨蛋", effect: (st) => { st.stock -= 4; st.charisma += 4; st.mediaHeat += 6; st.risk += 3; feed("你在电话会上怒喷分析师，短线股价受压但高管气场飙升。", "warn"); } },
-      { label: "B. 邀请他参加游艇派对", effect: (st) => { st.realCash -= 12; st.secAttention = Math.max(0, st.secAttention - 5); st.mediaHeat -= 2; st.risk = Math.max(0, st.risk - 3); feed("游艇香槟奏效，质疑声暂时变成了沉默。", "good"); } },
+      { label: "A. 当场怒喷：‘你连现金流量表都看不懂’", effect: (st) => { st.stock -= 4; st.charisma += 4; st.mediaHeat += 6; st.risk += 3; const msg = "你在电话会上怒喷分析师，股价短线回落，但社媒把你捧成‘暴君天才’。"; feed(msg, "warn"); return msg; } },
+      { label: "B. 邀请游艇晚宴，顺便‘再解释一次’", effect: (st) => { st.realCash -= 12; st.secAttention = Math.max(0, st.secAttention - 5); st.mediaHeat = Math.max(0, st.mediaHeat - 2); st.risk = Math.max(0, st.risk - 3); const msg = "香槟与海风成功降温，质疑暂缓，但现金悄悄蒸发。"; feed(msg, "good"); return msg; } },
     ],
   },
   2: {
     title: "季度突发：评级机构来电",
-    desc: "评级机构要求解释 SPE 担保链的真实敞口。",
+    desc: "评级机构要求你解释 SPE 担保链的真实敞口。",
     choices: [
-      { label: "A. 提供部分底稿（相对透明）", effect: (st) => { st.stock -= 2; st.secAttention -= 3; st.risk -= 2; feed("你勉强透明了一次，市场嫌难看但监管情绪回落。", "good"); } },
-      { label: "B. 用术语继续拖延", effect: (st) => { st.stock += 2; st.secAttention += 5; st.risk += 4; feed("你又赢下一次电话会议，也又输掉一点未来。", "warn"); } },
+      { label: "A. 递交部分底稿，换取喘息", effect: (st) => { st.stock -= 2; st.secAttention = Math.max(0, st.secAttention - 3); st.risk = Math.max(0, st.risk - 2); const msg = "你勉强透明一次，市场嫌难看，但监管火气暂时下降。"; feed(msg, "good"); return msg; } },
+      { label: "B. 用‘结构优化’术语继续拖延", effect: (st) => { st.stock += 2; st.secAttention += 5; st.risk += 4; const msg = "你又赢下一场电话会，也又输掉一截未来。"; feed(msg, "warn"); return msg; } },
     ],
   },
   3: {
     title: "季度突发：州政府问责",
-    desc: "停电影响扩大，州政府要求你公开交易记录。",
+    desc: "停电影响扩大，州政府要求公开交易记录。",
     choices: [
-      { label: "A. 甩锅天气与基础设施", effect: (st) => { st.stock += 1; st.mediaHeat += 6; st.whistleblowerPressure += 4; feed("甩锅有效但不持久，媒体开始连夜查档。", "warn"); } },
-      { label: "B. 设立补偿基金平息舆情", effect: (st) => { st.realCash -= 25; st.mediaHeat -= 5; st.secAttention -= 2; feed("花钱买平静，新闻热度短线回落。", "good"); } },
+      { label: "A. 甩锅天气与电网老化", effect: (st) => { st.stock += 1; st.mediaHeat += 6; st.whistleblowerPressure += 4; const msg = "甩锅话术奏效半天，媒体决定连夜开源你的邮件。"; feed(msg, "warn"); return msg; } },
+      { label: "B. 设立补偿基金平息舆情", effect: (st) => { st.realCash -= 25; st.mediaHeat = Math.max(0, st.mediaHeat - 5); st.secAttention = Math.max(0, st.secAttention - 2); const msg = "你花钱买了宁静，但 CFO 最怕的从来不是热搜，而是现金。"; feed(msg, "good"); return msg; } },
     ],
   },
   4: {
     title: "季度突发：内部邮件泄露",
     desc: "员工邮件外泄：‘我们只是把风险推迟到下个季度。’",
     choices: [
-      { label: "A. 全面否认并威胁起诉", effect: (st) => { st.stock += 1; st.secAttention += 7; st.risk += 6; feed("你强硬否认，市场半信半疑，检察官非常认真。", "bad"); } },
-      { label: "B. 牺牲一名高管止血", effect: (st) => { st.stock -= 2; st.risk -= 3; st.secAttention -= 2; feed("你成功甩出替罪羊，风暴暂时偏航。", "warn"); } },
+      { label: "A. 全面否认并威胁起诉", effect: (st) => { st.stock += 1; st.secAttention += 7; st.risk += 6; const msg = "你成功把语气拉满，也把检察官的兴趣拉满。"; feed(msg, "bad"); return msg; } },
+      { label: "B. 牺牲一位高管止血", effect: (st) => { st.stock -= 2; st.risk = Math.max(0, st.risk - 3); st.secAttention = Math.max(0, st.secAttention - 2); const msg = "替罪羊出列，风暴短暂停顿，董事会掌声稀稀拉拉。"; feed(msg, "warn"); return msg; } },
     ],
   },
 };
 
-const tickerPool = [
-  "安然再获‘最具创新企业’提名，董事会表示惊喜并不意外。",
-  "加州宣布进入紧急状态，电价与社交媒体情绪同步飙升。",
-  "传闻 SEC 正在调取某能源巨头账目，发言人回应：纯属常规。",
-  "匿名员工邮件流出：‘我们在管理预期，不是在管理现金。’",
-  "评级机构：结构化工具本身无罪，关键看谁在使用它。",
-];
+const quarterTickerBase = {
+  1: ["安然再获‘最具创新企业’提名，华尔街沉浸式鼓掌。", "分析师圈流传一句话：‘利润越好看，解释越复杂。’"],
+  2: ["Chewco 与 LJM 再次成为会议关键词，投资者假装听懂。", "评级机构提示：表外结构不是隐身衣。"],
+  3: ["加州进入紧急状态，电价与恐慌齐飞。", "交易员称‘我们只是提高了市场教育效率’。"],
+  4: ["传闻 SEC 正在调取核心账目，发言人回应‘纯属流程’。", "董事会强调长期价值，管理层忙于短期航班。"],
+};
+
+const optionTickerMap = {
+  insult: "分析师协会：电话会已从财务沟通升级为脱口秀。",
+  yacht: "海湾游艇码头客流上升，研究报告口吻同步转柔。",
+  transparent: "市场短暂惩罚透明，监管短暂奖励诚实。",
+  delay: "术语密度创新高，真实问题继续延期处理。",
+  blame: "州政府发布会称‘我们仍在等待完整解释’。",
+  fund: "补偿基金上线，舆论热度回落，现金焦虑升温。",
+  deny: "法律团队加班到凌晨，新闻标题加粗到首页。",
+  scapegoat: "内部人事变动频繁，市场称其为‘治理升级’。",
+  "激进MTM": "交易台庆祝模型胜利，风控部提前失眠。",
+  "保守MTM": "部分基金称增长不够性感，仍维持观望。",
+  "激进SPE": "投行圈私语：报表干净得像刚漂白。",
+  "保守SPE": "债务被挪到隔壁房间，门却没上锁。",
+  "高强度停机": "电力交易大厅欢呼，市民投诉热线爆满。",
+  "低强度停机": "市场波动温和上行，质疑声开始累积。",
+  "极速套现": "高管交易窗口异常活跃，社媒出现阴谋论热帖。",
+  "温和套现": "管理层称‘长期看好’，同时小步减持。",
+  "q1-tech": "电话会关键词：前置投入、结构优化、长期主义。",
+  "q2-tech": "会计术语密度刷新纪录，散户群聊集体静音。",
+  "q3-tech": "交易部门继续宣称自己只是‘流动性搬运工’。",
+  "q4-tech": "管理层强调现金充足，市场开始查现金来源。",
+  "q1-attack": "高管怒怼分析师片段登上财经热搜。",
+  "q2-attack": "问答环节火药味拉满，机构笔记越写越密。",
+  "q3-attack": "发布会演变为辩论赛，监管保持微笑记录。",
+  "q4-attack": "最后一次电话会，语气强硬但成交冷淡。",
+  "q1-promise": "新一轮增长承诺上线，未来现金流继续透支。",
+  "q2-promise": "ROE 承诺升级，模型参数同步乐观。",
+  "q3-promise": "超额利润口号再出发，做空报告同步加更。",
+  "q4-promise": "资本计划口径发布，市场选择先看卖盘。",
+};
 
 const analystQuestionBank = {
   conservative: [
@@ -134,26 +167,26 @@ const analystQuestionBank = {
 };
 
 
-const analystResponseBank = {
+const analystOptionBank = {
   1: [
-    { key: "术语烟雾弹", line: "我们采用分层风险定价框架，当前现金流错位属于战略前置投入。" },
-    { key: "情绪反击", line: "这个问题忽视了能源交易行业的基本常识，你的模型太线性。" },
-    { key: "加码承诺", line: "我们将通过新交易管道在下季实现进一步利润跃迁。" },
+    { key: "q1-tech", label: "“现金流错位是战略前置投入，我们看的是 20 年终局。”", stock: 5, risk: 6, sec: 3, media: 1 },
+    { key: "q1-attack", label: "“提这个问题说明你不了解能源交易。”", stock: 2, risk: 10, sec: 2, media: 6, charisma: 2 },
+    { key: "q1-promise", label: "“下季度我们会再给出双位数增长。”", stock: 10, risk: 14, sec: 3, whistle: 5, paper: 35, forecast: 40, corruption: 1 },
   ],
   2: [
-    { key: "术语烟雾弹", line: "SPE 是资本结构优化工具，不是风险转移；请不要混淆会计语言。" },
-    { key: "情绪反击", line: "你把结构金融当成作弊，这是对创新的偏见。" },
-    { key: "加码承诺", line: "资产轻量化将带来更高 ROE，下季度你会看到验证。" },
+    { key: "q2-tech", label: "“SPE 只是资本效率工具，不是风险转移。”", stock: 5, risk: 7, sec: 4, media: 1 },
+    { key: "q2-attack", label: "“把结构金融当作弊，是你模型太落后。”", stock: 3, risk: 10, sec: 2, media: 7, charisma: 2 },
+    { key: "q2-promise", label: "“资产轻量化会持续抬升 ROE。”", stock: 9, risk: 13, sec: 3, whistle: 4, paper: 28, forecast: 32, corruption: 1 },
   ],
   3: [
-    { key: "术语烟雾弹", line: "市场波动是供需自然结果，我们只是提供流动性服务。" },
-    { key: "情绪反击", line: "把电价波动归因给我们，是把天气也算进财报。" },
-    { key: "加码承诺", line: "交易部门将持续稳定贡献超额利润。" },
+    { key: "q3-tech", label: "“价格波动反映供需，我们只是提供流动性。”", stock: 4, risk: 7, sec: 4, media: 2 },
+    { key: "q3-attack", label: "“把停电归咎于我们，是把天气写进财报。”", stock: 2, risk: 11, sec: 2, media: 8, charisma: 2 },
+    { key: "q3-promise", label: "“交易部门将继续贡献超额利润。”", stock: 8, risk: 14, sec: 3, whistle: 5, paper: 30, forecast: 35, corruption: 1 },
   ],
   4: [
-    { key: "术语烟雾弹", line: "当前股价波动不改变基本面，管理层对长期价值高度确定。" },
-    { key: "情绪反击", line: "市场情绪不是经营问题，你的问题更像标题党。" },
-    { key: "加码承诺", line: "我们正在推进资本计划，足以穿越任何短期波动。" },
+    { key: "q4-tech", label: "“股价波动不改变基本面，我们现金部署充分。”", stock: 4, risk: 8, sec: 5, media: 2 },
+    { key: "q4-attack", label: "“这是情绪问题，不是经营问题。”", stock: 2, risk: 11, sec: 3, media: 8, charisma: 2 },
+    { key: "q4-promise", label: "“资本计划将覆盖所有短期压力。”", stock: 7, risk: 15, sec: 4, whistle: 5, paper: 25, forecast: 30, corruption: 1 },
   ],
 };
 
@@ -376,6 +409,7 @@ function renderActionPanel() {
       bumpCorruption(optimism >= 90 ? 2 : 1);
       state.actionDone = true;
       state.historyLog.push(`Q1 MTM：${optimism}%`);
+      state.lastActionSummary = optimism >= 85 ? "激进MTM" : "保守MTM";
       feed("Q1 决议通过：你让未来提前上班，让风险留在加班表里。", "good");
       render();
     };
@@ -415,8 +449,8 @@ function renderActionPanel() {
         state.mediaHeat += 3;
         bumpCorruption(o.debt > 600 ? 2 : 1);
         state.actionDone = true;
-        state.speLayers += 1;
         state.historyLog.push(`Q2 SPE：${o.debt}M`);
+        state.lastActionSummary = o.debt > 600 ? "激进SPE" : "保守SPE";
         feed("SPE 接盘完成：问题离开了报表，但没有离开现实。", "warn");
         render();
       };
@@ -458,6 +492,7 @@ function renderActionPanel() {
         bumpCorruption(2);
         state.actionDone = true;
         state.historyLog.push(`Q3 停机：${o.cash}M`);
+        state.lastActionSummary = o.cash > 200 ? "高强度停机" : "低强度停机";
         feed(`停机策略执行：${o.press}`, "bad");
         render();
       };
@@ -498,6 +533,7 @@ function renderActionPanel() {
       bumpCorruption(o.corruption);
       state.actionDone = true;
       state.historyLog.push(`Q4 套现：${o.cash}M`);
+      state.lastActionSummary = o.cash > 300 ? "极速套现" : "温和套现";
       feed("会后纪要：高管强调‘与公司共命运’，并提前预定了离岛机票。", "bad");
       render();
     };
@@ -525,6 +561,7 @@ function renderAuditPanel() {
         state.secAttention += 4;
         feed("安达信听完后表示：‘我们需要更多附件。’", "warn");
         state.historyLog.push("审计：解释结构");
+        state.lastAuditSummary = "解释结构";
       },
     },
     {
@@ -537,6 +574,7 @@ function renderAuditPanel() {
         bumpCorruption(1);
         feed("咨询费到账后，审计措辞从‘风险’改成了‘机会’。", "good");
         state.historyLog.push("审计：咨询费勾结");
+        state.lastAuditSummary = "咨询费勾结";
       },
     },
     {
@@ -550,6 +588,7 @@ function renderAuditPanel() {
         bumpCorruption(2);
         feed("旋转门启动：监督者进了管理层，独立性顺手下班。", "warn");
         state.historyLog.push("审计：旋转门");
+        state.lastAuditSummary = "旋转门";
       },
     },
   ];
@@ -585,53 +624,27 @@ function renderCallChoices() {
   root.innerHTML = "";
   document.getElementById("callPrompt").textContent = `分析师提问：${getAnalystQuestion()}`;
   const charmBonus = Math.floor(state.charisma / 25);
-  const responseSet = analystResponseBank[state.quarter] || analystResponseBank[1];
+  const options = analystOptionBank[state.quarter] || analystOptionBank[1];
 
-  const options = [
-    {
-      label: `术语烟雾弹（股价 +${5 + charmBonus}，SEC +3，风险 +6）`,
-      apply: () => {
-        state.stock += 5 + charmBonus;
-        state.risk += 6;
-        state.secAttention += 3;
-        feed(`你回答："${responseSet[0].line}"`, "good");
-        state.historyLog.push("会议：术语烟雾弹");
-      },
-    },
-    {
-      label: `情绪反击（股价 +${2 + charmBonus}，媒体 +6，风险 +10）`,
-      apply: () => {
-        state.stock += 2 + charmBonus;
-        state.risk += 10;
-        state.mediaHeat += 6;
-        state.charisma += 2;
-        feed(`你反击："${responseSet[1].line}"`, "warn");
-        state.historyLog.push("会议：情绪反击");
-      },
-    },
-    {
-      label: `加码承诺（股价 +${10 + charmBonus}，吹哨压力 +5，风险 +14）`,
-      apply: () => {
-        state.stock += 10 + charmBonus;
-        state.paperGain += 35;
-        state.forecastPaperGain += 40;
-        state.risk += 14;
-        state.whistleblowerPressure += 5;
-        bumpCorruption(1);
-        feed(`你承诺："${responseSet[2].line}"`, "good");
-        state.historyLog.push("会议：加码承诺");
-      },
-    },
-  ];
-
-  options.forEach((o) => {
+  options.forEach((opt) => {
     const btn = document.createElement("button");
     btn.className = "choice-btn";
-    btn.textContent = o.label;
+    btn.textContent = `${opt.label}（股价 +${opt.stock + charmBonus} / 风险 +${opt.risk}）`;
     btn.disabled = state.callDone;
     btn.onclick = () => {
       if (state.callDone) return;
-      o.apply();
+      state.stock += opt.stock + charmBonus;
+      state.risk += opt.risk;
+      state.secAttention += opt.sec || 0;
+      state.mediaHeat += opt.media || 0;
+      state.whistleblowerPressure += opt.whistle || 0;
+      state.charisma += opt.charisma || 0;
+      if (opt.paper) state.paperGain += opt.paper;
+      if (opt.forecast) state.forecastPaperGain += opt.forecast;
+      if (opt.corruption) bumpCorruption(opt.corruption);
+      state.lastCallSummary = opt.key;
+      feed(`你在会中表态：${opt.label}`, opt.key.includes("attack") ? "warn" : "good");
+      state.historyLog.push(`会议：${opt.key}`);
       state.callDone = true;
       render();
     };
@@ -639,26 +652,21 @@ function renderCallChoices() {
   });
 }
 
-function renderDebtTower() {
-  const tower = document.getElementById("debtTower");
-  const hint = document.getElementById("towerHint");
-  const h = Math.min(95, 12 + state.speLayers * 26);
-  tower.style.height = `${h}%`;
-  tower.style.background = state.speLayers <= 1 ? "#4dd58a" : state.speLayers === 2 ? "#ffc857" : "#ff6b6b";
-  tower.classList.toggle("lean", state.speLayers >= 3);
-  hint.textContent = state.speLayers === 0
-    ? "目前塔基稳定，你还没开始大规模藏债。"
-    : `已隐藏债务层数：${state.speLayers} 层${state.speLayers >= 3 ? "（塔体开始倾斜）" : ""}`;
-}
-
 function renderTicker() {
   const track = document.getElementById("tickerTrack");
+  const base = quarterTickerBase[state.quarter] || quarterTickerBase[1];
+  const mapped = [
+    optionTickerMap[state.lastEventSummary],
+    optionTickerMap[state.lastActionSummary],
+    optionTickerMap[state.lastCallSummary],
+  ].filter(Boolean);
   const dynamic = [
-    `Q${state.quarter} 股价 $${state.stock.toFixed(1)}；`,
-    `SEC关注 ${Math.round(state.secAttention)}；`,
-    `隐藏债务层 ${state.speLayers}；`,
+    `Q${state.quarter} 股价 $${state.stock.toFixed(1)}`,
+    `SEC关注 ${Math.round(state.secAttention)}`,
+    state.lastActionSummary ? `动作：${state.lastActionSummary}` : "动作：待决策",
+    state.lastEventSummary ? `事件：${state.lastEventSummary}` : "事件：待触发",
   ];
-  track.textContent = [...tickerPool, ...dynamic].join("  •  ");
+  track.textContent = [...base, ...mapped, ...dynamic].join("  •  ");
 }
 
 function resolveQuarterRandomEvent(onDone) {
@@ -668,20 +676,39 @@ function resolveQuarterRandomEvent(onDone) {
   }
   const event = quarterRandomEvents[state.quarter];
   const modal = document.getElementById("randomEvent");
-  document.getElementById("eventTitle").textContent = event.title;
-  document.getElementById("eventDesc").textContent = event.desc;
+  const titleNode = document.getElementById("eventTitle");
+  const descNode = document.getElementById("eventDesc");
+  titleNode.textContent = event.title;
+  descNode.textContent = event.desc;
   const root = document.getElementById("eventChoices");
   root.innerHTML = "";
-  event.choices.forEach((c) => {
+
+  event.choices.forEach((c, idx) => {
     const btn = document.createElement("button");
     btn.className = "choice-btn";
     btn.textContent = c.label;
     btn.onclick = () => {
-      c.effect(state);
+      const feedback = c.effect(state);
+      const keyMap = {
+        1: ["insult", "yacht"],
+        2: ["transparent", "delay"],
+        3: ["blame", "fund"],
+        4: ["deny", "scapegoat"],
+      };
+      state.lastEventSummary = keyMap[state.quarter][idx];
       state.randomEventResolved = true;
-      modal.classList.add("hidden");
-      render();
-      onDone();
+
+      descNode.textContent = `选择结果：${feedback}`;
+      root.innerHTML = "";
+      const confirm = document.createElement("button");
+      confirm.className = "choice-btn";
+      confirm.textContent = "确认并继续季度结算";
+      confirm.onclick = () => {
+        modal.classList.add("hidden");
+        render();
+        onDone();
+      };
+      root.appendChild(confirm);
     };
     root.appendChild(btn);
   });
@@ -791,7 +818,6 @@ function render() {
   renderQuarterStatus();
   renderTimeline();
   renderInvestigationPanel();
-  renderDebtTower();
   renderActionPanel();
   renderAuditPanel();
   renderCallChoices();
