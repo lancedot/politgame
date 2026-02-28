@@ -14,98 +14,110 @@ body {
   font-family: "Segoe UI", "PingFang SC", sans-serif;
   background: radial-gradient(circle at top, #132742, var(--bg));
   color: var(--text);
+  line-height: 1.3;
 }
 
-.topbar { padding: 20px; border-bottom: 1px solid #223a5d; }
-h1 { margin: 0; font-size: 1.8rem; letter-spacing: .04em; }
-.subtitle { color: var(--dim); margin-top: 8px; }
+.topbar { padding: 12px 16px; border-bottom: 1px solid #223a5d; }
+h1 { margin: 0; font-size: 1.45rem; letter-spacing: .03em; }
+.subtitle { color: var(--dim); margin-top: 4px; font-size: .9rem; }
+
+.headline-feed {
+  margin: 10px 16px 0;
+  min-height: auto;
+  padding: 10px 12px;
+}
 
 .metrics {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
-  gap: 12px;
-  padding: 16px 20px;
+  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+  gap: 8px;
+  padding: 10px 16px;
 }
-.metric { background: #081525; border: 1px solid #274165; border-radius: 10px; padding: 10px 12px; }
-.metric h3 { margin: 0 0 8px; font-size: .8rem; color: var(--dim); }
-.metric strong { font-size: 1.1rem; }
+.metric { background: #081525; border: 1px solid #274165; border-radius: 8px; padding: 7px 9px; }
+.metric h3 { margin: 0 0 4px; font-size: .73rem; color: var(--dim); }
+.metric strong { font-size: 1rem; }
 
 .motto {
-  margin: 0 20px 16px;
-  padding: 10px 12px;
+  margin: 0 16px 10px;
+  padding: 6px 10px;
   border: 1px dashed #3a5880;
-  letter-spacing: .28em;
+  letter-spacing: .18em;
   transition: all .4s ease;
+  font-size: .85rem;
 }
 
 .layout {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 14px;
-  padding: 0 20px 20px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 10px;
+  padding: 0 16px 14px;
 }
 .panel {
   background: var(--panel);
   border: 1px solid #274165;
-  border-radius: 12px;
-  padding: 14px;
-  min-height: 220px;
+  border-radius: 10px;
+  padding: 10px;
+  min-height: 170px;
 }
-.panel h2 { margin-top: 0; font-size: 1rem; }
+.panel h2 { margin: 0 0 6px; font-size: .95rem; }
+.panel p { margin: 5px 0; }
 
 button {
   border: 1px solid #31507b;
   background: #163257;
   color: #e9f2ff;
-  border-radius: 8px;
-  padding: 8px 12px;
+  border-radius: 7px;
+  padding: 6px 9px;
   cursor: pointer;
-  margin-top: 10px;
+  margin-top: 6px;
+  font-size: .85rem;
 }
 button:disabled { opacity: .5; cursor: not-allowed; }
 
-input[type='range'] { width: 100%; margin-top: 8px; }
-.choices { display: grid; gap: 8px; }
+input[type='range'] { width: 100%; margin-top: 6px; }
+.choices { display: grid; gap: 6px; }
 .choice-btn { text-align: left; width: 100%; }
 
-.small { color: var(--dim); font-size: .88rem; }
+.small { color: var(--dim); font-size: .8rem; }
 #report {
   border-left: 3px solid #355987;
-  padding: 8px 10px;
+  padding: 7px 8px;
   color: #c9ddff;
-  line-height: 1.45;
+  line-height: 1.35;
   background: #0b182a;
+  font-size: .86rem;
 }
 
 .progress-row {
   display: grid;
-  grid-template-columns: 110px 1fr;
-  gap: 10px;
+  grid-template-columns: 90px 1fr;
+  gap: 8px;
   align-items: center;
-  margin-bottom: 8px;
-  font-size: .9rem;
+  margin-bottom: 6px;
+  font-size: .82rem;
 }
-progress { width: 100%; height: 12px; }
+progress { width: 100%; height: 10px; }
 
 .impact {
-  margin-top: 10px;
+  margin-top: 7px;
   border: 1px solid #355987;
-  border-radius: 8px;
-  padding: 8px 10px;
+  border-radius: 7px;
+  padding: 6px 8px;
   background: #0b182a;
+  font-size: .85rem;
 }
-.impact ul { margin: 6px 0 0 18px; padding: 0; }
-.term-box { margin-top: 10px; }
-.term-btn { font-size: .86rem; }
+.impact ul { margin: 4px 0 0 16px; padding: 0; }
+.term-box { margin-top: 8px; }
+.term-btn { font-size: .8rem; }
 #exerciseBtn { background: #23466e; }
 
-#feed { list-style: none; max-height: 300px; overflow-y: auto; margin: 0; padding: 0; }
-#feed li { border-bottom: 1px solid #1c3352; padding: 8px 0; font-size: .92rem; }
+#feed { list-style: none; max-height: 180px; overflow-y: auto; margin: 0; padding: 0; }
+#feed li { border-bottom: 1px solid #1c3352; padding: 5px 0; font-size: .84rem; }
 
 .overlay { position: fixed; inset: 0; background: rgba(4, 10, 18, 0.88); display: grid; place-items: center; }
 .hidden { display: none; }
-.ending-card { width: min(760px, 92vw); background: #101f34; border: 1px solid #355987; border-radius: 14px; padding: 22px; }
-#endingDebrief ul { margin: 6px 0 10px 20px; }
+.ending-card { width: min(760px, 92vw); background: #101f34; border: 1px solid #355987; border-radius: 12px; padding: 16px; }
+#endingDebrief ul { margin: 6px 0 10px 18px; }
 
 .bad { color: var(--danger); }
 .good { color: var(--good); }

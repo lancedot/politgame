@@ -88,6 +88,30 @@ const analystQuestionBank = {
   ],
 };
 
+
+const analystResponseBank = {
+  1: [
+    { key: "术语烟雾弹", line: "我们采用分层风险定价框架，当前现金流错位属于战略前置投入。" },
+    { key: "情绪反击", line: "这个问题忽视了能源交易行业的基本常识，你的模型太线性。" },
+    { key: "加码承诺", line: "我们将通过新交易管道在下季实现进一步利润跃迁。" },
+  ],
+  2: [
+    { key: "术语烟雾弹", line: "SPE 是资本结构优化工具，不是风险转移；请不要混淆会计语言。" },
+    { key: "情绪反击", line: "你把结构金融当成作弊，这是对创新的偏见。" },
+    { key: "加码承诺", line: "资产轻量化将带来更高 ROE，下季度你会看到验证。" },
+  ],
+  3: [
+    { key: "术语烟雾弹", line: "市场波动是供需自然结果，我们只是提供流动性服务。" },
+    { key: "情绪反击", line: "把电价波动归因给我们，是把天气也算进财报。" },
+    { key: "加码承诺", line: "交易部门将持续稳定贡献超额利润。" },
+  ],
+  4: [
+    { key: "术语烟雾弹", line: "当前股价波动不改变基本面，管理层对长期价值高度确定。" },
+    { key: "情绪反击", line: "市场情绪不是经营问题，你的问题更像标题党。" },
+    { key: "加码承诺", line: "我们正在推进资本计划，足以穿越任何短期波动。" },
+  ],
+};
+
 const glossary = {
   MTM: {
     short: "MTM：未来利润先记今天。",
@@ -515,6 +539,7 @@ function renderCallChoices() {
   root.innerHTML = "";
   document.getElementById("callPrompt").textContent = `分析师提问：${getAnalystQuestion()}`;
   const charmBonus = Math.floor(state.charisma / 25);
+  const responseSet = analystResponseBank[state.quarter] || analystResponseBank[1];
 
   const options = [
     {
@@ -523,7 +548,7 @@ function renderCallChoices() {
         state.stock += 5 + charmBonus;
         state.risk += 6;
         state.secAttention += 3;
-        feed("你用术语替代答案，市场短暂满意，调查组长期记忆。", "good");
+        feed(`你回答："${responseSet[0].line}"`, "good");
         state.historyLog.push("会议：术语烟雾弹");
       },
     },
@@ -534,7 +559,7 @@ function renderCallChoices() {
         state.risk += 10;
         state.mediaHeat += 6;
         state.charisma += 2;
-        feed("你质疑提问者专业性，直播热度上涨，证据链也在上涨。", "warn");
+        feed(`你反击："${responseSet[1].line}"`, "warn");
         state.historyLog.push("会议：情绪反击");
       },
     },
@@ -547,7 +572,7 @@ function renderCallChoices() {
         state.risk += 14;
         state.whistleblowerPressure += 5;
         bumpCorruption(1);
-        feed("你给未来再开一张支票，掌声和利息一起到账。", "good");
+        feed(`你承诺："${responseSet[2].line}"`, "good");
         state.historyLog.push("会议：加码承诺");
       },
     },
@@ -570,16 +595,19 @@ function renderCallChoices() {
 
 function exerciseOptions() {
   if (state.exercisedThisQuarter || state.personalOptions <= 0) return;
-  const units = Math.min(30, state.personalOptions);
-  const proceeds = units * state.stock * 0.45;
+  const units = Math.min(20, state.personalOptions);
+  const grossProceeds = units * state.stock * 0.02;
+  const liquidityCap = Math.max(6, state.realCash * 0.18);
+  const proceeds = Math.min(grossProceeds, liquidityCap);
   state.personalOptions -= units;
   state.privateAccount += proceeds;
-  state.stock -= 1.2;
-  state.risk += 4;
-  state.mediaHeat += 3;
+  state.realCash -= proceeds * 0.3;
+  state.stock -= Math.max(0.4, units * 0.02);
+  state.risk += 3;
+  state.mediaHeat += 2;
   state.exercisedThisQuarter = true;
-  state.historyLog.push(`期权变现：${units}份`);
-  feed(`你按 $${state.stock.toFixed(1)} 执行 ${units} 份期权，私人账户 +${formatMoney(proceeds)}。`, "warn");
+  state.historyLog.push(`期权变现：${units}份(${formatMoney(proceeds)})`);
+  feed(`你按 $${state.stock.toFixed(1)} 执行 ${units} 份期权，到账 ${formatMoney(proceeds)}（受流动性上限约束）。`, "warn");
   render();
 }
 
