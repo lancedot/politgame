@@ -258,9 +258,9 @@ function bumpCorruption(level) {
   state.fraudCount += level;
   state.morality = Math.max(0, state.morality - 9 * level);
   state.charisma = Math.min(100, state.charisma + 7 * level);
-  state.secAttention += level * 3;
-  state.mediaHeat += level * 2;
-  state.whistleblowerPressure += level * 2;
+  state.secAttention += level * 2;
+  state.mediaHeat += level * 1.5;
+  state.whistleblowerPressure += level * 1.5;
 }
 
 function updateMarketDerived() {
@@ -362,13 +362,13 @@ function renderInvestigationPanel() {
 function triggerSpecialEvents() {
   if (state.whistleblowerPressure >= 62 && !state.triggeredEvents.has("whistle")) {
     state.triggeredEvents.add("whistle");
-    state.risk += 8;
+    state.risk += 5;
     feed("匿名内部备忘录外泄：‘我们正在把亏损藏在叙事里。’", "warn");
     state.historyLog.push("吹哨者事件触发");
   }
   if (state.secAttention >= 70 && !state.triggeredEvents.has("sec")) {
     state.triggeredEvents.add("sec");
-    state.risk += 10;
+    state.risk += 6;
     feed("SEC 发出专项问询函：请解释利润与现金流背离。", "bad");
     state.historyLog.push("SEC深度问询触发");
   }
@@ -614,7 +614,7 @@ function renderAuditPanel() {
     {
       label: "解释复杂结构（不送钱）",
       apply: () => {
-        state.risk += 10;
+        state.risk += 6;
         state.secAttention += 4;
         feed("安达信听完后表示：‘我们需要更多附件。’", "warn");
         state.historyLog.push("审计：解释结构");
@@ -794,24 +794,90 @@ function exerciseOptions() {
   render();
 }
 
+function handleCashCrisisIfNeeded(onDone) {
+  if (state.realCash >= 0) {
+    onDone();
+    return;
+  }
+
+  const modal = document.getElementById("cashCrisisModal");
+  const root = document.getElementById("cashCrisisChoices");
+  root.innerHTML = "";
+
+  const options = [
+    {
+      label: "预收长期合同现金（历史原型：提前变现未来合约）｜现金 +$120M / 风险 +6",
+      apply: () => {
+        state.realCash += 120;
+        state.paperGain += 10;
+        state.risk += 6;
+        state.secAttention += 5;
+        state.lastEventSummary = "delay";
+        feed("你把未来合同现金提前搬到现在，账上喘了口气，未来压力上了锁。", "warn");
+      },
+    },
+    {
+      label: "通过 SPE 过桥融资（历史原型：表外结构融资）｜现金 +$180M / 风险 +12",
+      apply: () => {
+        state.realCash += 180;
+        state.risk += 12;
+        state.secAttention += 8;
+        state.whistleblowerPressure += 6;
+        state.lastEventSummary = "delay";
+        feed("你用表外结构再借一层命，审计脚注越来越像小说。", "bad");
+      },
+    },
+    {
+      label: "申请银行紧急授信（历史原型：信用额度救火）｜现金 +$90M / 股价 -6",
+      apply: () => {
+        state.realCash += 90;
+        state.stock -= 6;
+        state.risk += 4;
+        state.secAttention += 2;
+        state.lastEventSummary = "transparent";
+        feed("银行愿意给钱，但市场读懂了你的求生姿态。", "warn");
+      },
+    },
+  ];
+
+  options.forEach((opt) => {
+    const btn = document.createElement("button");
+    btn.className = "choice-btn";
+    btn.textContent = opt.label;
+    btn.onclick = () => {
+      opt.apply();
+      modal.classList.add("hidden");
+      onDone();
+    };
+    root.appendChild(btn);
+  });
+
+  modal.classList.remove("hidden");
+}
+
 function settleQuarterCore() {
   const operatingCost = 110 + state.quarter * 10;
   const interest = 120 + state.quarter * 15;
   state.realCash -= operatingCost + interest;
+  handleCashCrisisIfNeeded(settleQuarterPostFinance);
+}
 
+function settleQuarterPostFinance() {
   if (state.paperGain < state.marketExpectedGain) {
-    state.stock -= 8;
-    state.risk += 8;
+    const gap = state.marketExpectedGain - state.paperGain;
+    const drop = Math.max(6, Math.min(14, gap / 25));
+    state.stock -= drop;
+    state.risk += 5;
     state.mediaHeat += 4;
-    feed("披露利润低于市场预期，主持人开始反复强调‘长期价值’。", "warn");
+    feed(`披露利润低于市场预期，股价下跌 ${drop.toFixed(1)} 点。`, "warn");
   } else {
-    state.stock += 5;
-    feed("披露利润高于预期，市场奖励了你的叙事效率。", "good");
+    state.stock += 3;
+    feed("披露利润高于预期，股价小幅拉升。", "good");
   }
 
   if (state.auditIndependence < 45) {
-    state.risk += 5;
-    state.secAttention += 5;
+    state.risk += 3;
+    state.secAttention += 4;
     feed("审计独立性过低触发反噬：监管把‘咨询关系’写进问询。", "bad");
   }
 
@@ -820,7 +886,8 @@ function settleQuarterCore() {
   state.paperGain *= 0.7;
   state.forecastPaperGain = state.paperGain + 20;
   state.stock = Math.max(2, state.stock);
-  state.risk = Math.max(0, Math.min(130, state.risk));
+  state.risk = Math.max(0, state.risk - 4);
+  state.risk = Math.max(0, Math.min(115, state.risk));
   clampInvestigation();
   document.getElementById("report").textContent = generateReportText();
 
