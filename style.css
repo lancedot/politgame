@@ -22,13 +22,13 @@ h1 { margin: 0; font-size: 1.8rem; letter-spacing: .04em; }
 
 .metrics {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
   gap: 12px;
   padding: 16px 20px;
 }
 .metric { background: #081525; border: 1px solid #274165; border-radius: 10px; padding: 10px 12px; }
-.metric h3 { margin: 0 0 8px; font-size: .82rem; color: var(--dim); }
-.metric strong { font-size: 1.18rem; }
+.metric h3 { margin: 0 0 8px; font-size: .8rem; color: var(--dim); }
+.metric strong { font-size: 1.1rem; }
 
 .motto {
   margin: 0 20px 16px;
@@ -77,16 +77,15 @@ input[type='range'] { width: 100%; margin-top: 8px; }
   background: #0b182a;
 }
 
-#feed { list-style: none; max-height: 300px; overflow-y: auto; margin: 0; padding: 0; }
-#feed li { border-bottom: 1px solid #1c3352; padding: 8px 0; font-size: .92rem; }
-
-.overlay { position: fixed; inset: 0; background: rgba(4, 10, 18, 0.88); display: grid; place-items: center; }
-.hidden { display: none; }
-.ending-card { width: min(680px, 90vw); background: #101f34; border: 1px solid #355987; border-radius: 14px; padding: 22px; }
-
-.bad { color: var(--danger); }
-.good { color: var(--good); }
-.warn { color: var(--warn); }
+.progress-row {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: .9rem;
+}
+progress { width: 100%; height: 12px; }
 
 .impact {
   margin-top: 10px;
@@ -97,4 +96,17 @@ input[type='range'] { width: 100%; margin-top: 8px; }
 }
 .impact ul { margin: 6px 0 0 18px; padding: 0; }
 .term-box { margin-top: 10px; }
+.term-btn { font-size: .86rem; }
 #exerciseBtn { background: #23466e; }
+
+#feed { list-style: none; max-height: 300px; overflow-y: auto; margin: 0; padding: 0; }
+#feed li { border-bottom: 1px solid #1c3352; padding: 8px 0; font-size: .92rem; }
+
+.overlay { position: fixed; inset: 0; background: rgba(4, 10, 18, 0.88); display: grid; place-items: center; }
+.hidden { display: none; }
+.ending-card { width: min(760px, 92vw); background: #101f34; border: 1px solid #355987; border-radius: 14px; padding: 22px; }
+#endingDebrief ul { margin: 6px 0 10px 20px; }
+
+.bad { color: var(--danger); }
+.good { color: var(--good); }
+.warn { color: var(--warn); }

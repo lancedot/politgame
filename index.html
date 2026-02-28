@@ -9,7 +9,7 @@
 <body>
   <header class="topbar">
     <h1>安然季度股东大会决议</h1>
-    <p class="subtitle">你管理的是预期、口径与责任的转移速度。</p>
+    <p class="subtitle">利润是叙事，现金是现实，责任是可转移资产。</p>
   </header>
 
   <section class="metrics" id="metrics"></section>
@@ -27,6 +27,23 @@
       <button id="nextQuarterBtn" disabled>发布财报并进入下一季度</button>
     </section>
 
+    <section class="panel" id="timelinePanel">
+      <h2>历史时间轴对照</h2>
+      <p id="timelineYear" class="small"></p>
+      <p id="timelineEvent"></p>
+      <p id="timelinePeople" class="small"></p>
+      <p id="timelineImpact" class="small"></p>
+    </section>
+
+    <section class="panel" id="investigationPanel">
+      <h2>调查进度</h2>
+      <div class="progress-row"><span>SEC 关注</span><progress id="secBar" max="100" value="0"></progress></div>
+      <div class="progress-row"><span>媒体热度</span><progress id="mediaBar" max="100" value="0"></progress></div>
+      <div class="progress-row"><span>吹哨压力</span><progress id="whistleBar" max="100" value="0"></progress></div>
+      <div class="progress-row"><span>审计独立性下降</span><progress id="auditBar" max="100" value="0"></progress></div>
+      <p id="investigationHint" class="small"></p>
+    </section>
+
     <section class="panel" id="actionPanel">
       <h2>核心任务</h2>
       <p id="actionIntro"></p>
@@ -35,7 +52,7 @@
 
     <section class="panel" id="auditPanel">
       <h2>审计沟通</h2>
-      <p class="small">与安达信的关系管理会影响怀疑度与披露口径。</p>
+      <p class="small">审计意见不是数字打印机，但可以是遮羞布。</p>
       <div class="choices" id="auditChoices"></div>
     </section>
 
@@ -47,7 +64,7 @@
 
     <section class="panel" id="reportPanel">
       <h2>季度报告生成器</h2>
-      <p class="small">每季度自动生成一段商业黑话，用于投资者沟通。</p>
+      <p class="small">商业黑话自动生成，供投资者情绪管理使用。</p>
       <article id="report"></article>
     </section>
 
@@ -61,6 +78,7 @@
     <div class="ending-card">
       <h2 id="endingTitle"></h2>
       <p id="endingDesc"></p>
+      <div id="endingDebrief"></div>
       <p id="endingScore"></p>
       <button onclick="location.reload()">重新召开季度会议</button>
     </div>
