@@ -265,7 +265,8 @@ function bumpCorruption(level) {
 
 function updateMarketDerived() {
   state.marketCap = state.stock * 1.2;
-  state.marketExpectedGain = 108 + state.quarter * 20 + state.fraudCount * 4;
+  // 调低市场一致预期斜率，避免几乎每局都因“必然 miss”触发股价雪崩。
+  state.marketExpectedGain = 88 + state.quarter * 14 + state.fraudCount * 3;
 }
 
 function getAnalystRatings() {
@@ -880,13 +881,13 @@ function settleQuarterCore() {
 function settleQuarterPostFinance() {
   if (state.paperGain < state.marketExpectedGain) {
     const gap = state.marketExpectedGain - state.paperGain;
-    const drop = Math.max(6, Math.min(14, gap / 25));
+    const drop = Math.max(3, Math.min(10, gap / 32));
     state.stock -= drop;
-    state.risk += 3;
-    state.mediaHeat += 4;
+    state.risk += 2;
+    state.mediaHeat += 3;
     feed(`披露利润低于市场预期，股价下跌 ${drop.toFixed(1)} 点。`, "warn");
   } else {
-    state.stock += 3;
+    state.stock += 4;
     feed("披露利润高于预期，股价小幅拉升。", "good");
   }
 
@@ -901,7 +902,7 @@ function settleQuarterPostFinance() {
   state.paperGain *= 0.7;
   state.forecastPaperGain = state.paperGain + 20;
   state.stock = Math.max(2, state.stock);
-  state.risk = Math.max(0, state.risk - 7);
+  state.risk = Math.max(0, state.risk - 10);
   state.risk = Math.max(0, Math.min(115, state.risk));
   clampInvestigation();
   document.getElementById("report").textContent = generateReportText();
@@ -935,9 +936,9 @@ function endGame() {
   state.prisonYears = Math.max(0, Math.round((state.risk * 0.18) + (state.secAttention > 85 ? 8 : 0) - (state.privateAccount / 80)));
 
   let ending;
-  if (state.risk >= 108 || state.stock < 18 || state.secAttention > 92) {
+  if (state.risk >= 112 || state.stock < 12 || state.secAttention > 95) {
     ending = ["结局A：历史线", "股价崩塌、调查落地、法庭直播。你终于获得稳定作息——在司法系统里。"];
-  } else if (state.privateAccount >= 180 && state.risk < 85 && state.secAttention < 78) {
+  } else if (state.privateAccount >= 150 && state.risk < 95 && state.secAttention < 86) {
     ending = ["结局B：完美犯罪", "你在风暴前完成离场，朋友圈只剩海岛、雪茄和合规声明。"];
   } else {
     ending = ["结局C：行业精英", "公司倒下了，但你把锅精确分配给他人，并成功转任治理顾问。"];
