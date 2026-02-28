@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CFO Roguelike MVP</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="bg-glow"></div>
+    <header class="topbar glass">
+      <div>
+        <h1>CFO Roguelike · IPO Sprint</h1>
+        <p>现金 × 增长 × 合规，12 个季度冲刺 IPO</p>
+      </div>
+      <div class="meta" id="meta"></div>
+    </header>
+
+    <main class="layout">
+      <section class="panel glass triad">
+        <h2>核心压力</h2>
+        <div id="triad"></div>
+      </section>
+
+      <section class="panel glass ipo-goal">
+        <h2>IPO 目标进度</h2>
+        <div id="ipo-progress"></div>
+      </section>
+
+      <section class="panel glass market-panel">
+        <h2>市场 & 融资</h2>
+        <div id="market"></div>
+      </section>
+
+      <section class="panel glass statements">
+        <h2>三大报表</h2>
+        <div class="tabs">
+          <button data-tab="pnl" class="active">利润表</button>
+          <button data-tab="bs">资产负债表</button>
+          <button data-tab="cf">现金流量表</button>
+          <button data-tab="ratio">诊断指标</button>
+        </div>
+        <div id="statement-table"></div>
+      </section>
+
+      <section class="panel glass decisions">
+        <h2>决策面板（必须选 2 项）</h2>
+        <div class="decision-tip" id="decision-tip"></div>
+        <div id="decision-groups"></div>
+        <button id="end-turn" class="primary">提交决策并进入事件</button>
+      </section>
+
+      <section class="panel glass events">
+        <h2>随机事件</h2>
+        <div id="event-feed"></div>
+      </section>
+
+      <section class="panel glass logs">
+        <h2>董事会日志</h2>
+        <div id="logs"></div>
+      </section>
+    </main>
+
+    <dialog id="start-dialog" class="glass">
+      <h3>选择开局配置</h3>
+      <label>行业
+        <select id="industry-select">
+          <option value="saas">SaaS</option>
+          <option value="manufacturing">制造业</option>
+          <option value="consumer">消费品</option>
+        </select>
+      </label>
+      <label>CFO 背景
+        <select id="background-select">
+          <option value="investment_banker">投行背景</option>
+          <option value="state_enterprise">国企背景</option>
+          <option value="big_four">四大背景</option>
+        </select>
+      </label>
+      <button id="start-game">开始游戏</button>
+    </dialog>
+
+    <script src="app.js" type="module"></script>
+  </body>
+</html>

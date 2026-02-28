@@ -1,0 +1,66 @@
+:root {
+  color-scheme: dark;
+  --bg: #0a1022;
+  --glass: rgba(255, 255, 255, 0.08);
+  --line: rgba(255, 255, 255, 0.14);
+  --text: #e8ecff;
+  --muted: #a9b3d9;
+  --accent: #7ca6ff;
+  --good: #59d8a1;
+  --warn: #f6c453;
+  --bad: #ff6b7a;
+}
+* { box-sizing: border-box; }
+body { margin: 0; font-family: "Inter", "Segoe UI", system-ui, sans-serif; color: var(--text); background: radial-gradient(circle at 20% 0%, #1b2f64 0%, var(--bg) 40%, #050812 100%); }
+.bg-glow { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(circle at 70% 20%, rgba(124, 166, 255, 0.25), transparent 40%); }
+.topbar { margin: 12px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; }
+.topbar h1 { margin: 0; font-size: 1.1rem; }
+.topbar p { margin: 2px 0 0; color: var(--muted); font-size: 12px; }
+.meta { text-align: right; color: var(--muted); font-size: 12px; }
+.glass { background: var(--glass); border: 1px solid var(--line); backdrop-filter: blur(10px); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
+.layout { display: grid; grid-template-columns: 0.95fr 1.6fr 1.15fr; grid-template-areas: "triad statements decisions" "ipo statements decisions" "market statements events" "logs statements events"; gap: 10px; padding: 0 12px 12px; }
+.panel { padding: 10px; }
+.panel h2 { margin: 0 0 8px; font-size: 0.92rem; }
+.triad { grid-area: triad; }
+.ipo-goal { grid-area: ipo; }
+.market-panel { grid-area: market; }
+.statements { grid-area: statements; }
+.decisions { grid-area: decisions; }
+.events { grid-area: events; }
+.logs { grid-area: logs; }
+.tabs { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+.tabs button, #end-turn, .decision button, #start-game {
+  border: 1px solid var(--line); background: rgba(255,255,255,0.06); color: var(--text); border-radius: 8px; padding: 5px 8px; cursor: pointer; font-size: 12px;
+}
+.tabs button.active { border-color: var(--accent); color: var(--accent); }
+.table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.table td { padding: 5px 4px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.table td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+.metric { display: flex; justify-content: space-between; margin: 5px 0; gap: 8px; font-size: 12px; }
+.metric small { color: var(--muted); font-size: 11px; }
+.badge { padding: 1px 6px; border-radius: 999px; font-size: 11px; }
+.badge.good { background: rgba(89,216,161,0.2); color: var(--good); }
+.badge.warn { background: rgba(246,196,83,0.2); color: var(--warn); }
+.badge.bad { background: rgba(255,107,122,0.2); color: var(--bad); }
+.decision-tip { color: var(--muted); margin-bottom: 8px; font-size: 12px; }
+.group { margin-bottom: 8px; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; overflow: hidden; }
+.group summary { cursor: pointer; padding: 6px 8px; background: rgba(255,255,255,0.04); font-size: 12px; }
+.decision { border-top: 1px solid rgba(255,255,255,0.06); padding: 8px; }
+.decision.selected { background: rgba(124,166,255,0.12); }
+.decision h4 { margin: 0 0 4px; font-size: 12px; }
+.decision p { margin: 0 0 6px; color: var(--muted); font-size: 11px; }
+.decision button, .event-option { width: 100%; margin-top: 4px; }
+.primary { width: 100%; margin-top: 8px; background: linear-gradient(120deg, #6f8fff, #7ca6ff); color: #081023; font-weight: 700; }
+.primary:disabled, .event-option:disabled { opacity: 0.45; cursor: not-allowed; }
+#logs, #event-feed { max-height: 210px; overflow: auto; color: var(--muted); display: flex; flex-direction: column; gap: 6px; font-size: 12px; }
+.event-card { border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 8px; }
+.event-result { font-size: 11px; margin-top: 6px; }
+.event-result.pass { color: var(--good); }
+.event-result.fail { color: var(--bad); }
+dialog { border: none; padding: 14px; width: 340px; display: grid; gap: 8px; }
+select { width: 100%; margin-top: 4px; background: rgba(255,255,255,0.08); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 6px; }
+label { font-size: 12px; color: var(--muted); }
+dialog::backdrop { background: rgba(0,0,0,0.45); }
+@media (max-width: 1100px) { .layout { grid-template-columns: 1fr; grid-template-areas: "triad" "ipo" "market" "statements" "decisions" "events" "logs"; } }
+
+dialog[hidden] { display: none !important; }
