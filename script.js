@@ -1,7 +1,7 @@
 const state = {
   quarter: 1,
   paperGain: 95,
-  realCash: 500,
+  realCash: 800,
   risk: 20,
   privateAccount: 0,
   stock: 78,
@@ -33,6 +33,9 @@ const state = {
   prisonYears: 0,
   quoteShownForQuarter: 0,
   rotationDoorUsed: false,
+  lobbyingUsedThisQuarter: false,
+  speHiddenDebt: 0,
+  tipShredBoost: false,
   debt: 260,
   totalAssets: 1400,
   prevStock: 78,
@@ -355,7 +358,7 @@ function renderMetrics() {
   const list = [
     ["账面收益 Paper Gain", formatMoney(state.paperGain)],
     ["真实头寸 Real Cash", formatMoney(state.realCash)],
-    ["合规风险 Risk Meter", `${Math.round(state.risk)} / 100`],
+    ["合规风险 Risk Meter", `${Math.round(state.risk)} / 120`],
     ["股价 Stock Price", `$${state.stock.toFixed(1)}`],
     ["市值 Market Cap", formatBillion(state.marketCap)],
     ["市场预期利润", formatMoney(state.marketExpectedGain)],
@@ -376,6 +379,14 @@ function renderMetrics() {
   document.getElementById("optionInfo").textContent = state.exercisedThisQuarter
     ? "本季度已完成期权变现。"
     : "可在季度末按当前股价执行一次期权变现。";
+
+  const lobbyBtn = document.getElementById("lobbyingBtn");
+  if (lobbyBtn) {
+    lobbyBtn.disabled = state.lobbyingUsedThisQuarter || state.realCash < 120;
+    lobbyBtn.textContent = state.lobbyingUsedThisQuarter
+      ? "公关与游说（本季度已执行）"
+      : "公关与游说（现金换风险）";
+  }
 
   const decay = Math.min(1, (100 - state.morality) / 100);
   const motto = document.getElementById("motto");
@@ -415,6 +426,13 @@ function triggerSpecialEvents() {
     feed("匿名内部备忘录外泄：‘我们正在把亏损藏在叙事里。’", "warn");
     state.historyLog.push("吹哨者事件触发");
   }
+  if (state.quarter >= 3 && !state.triggeredEvents.has(`insider-tip-q${state.quarter}`) && Math.random() < 0.34) {
+    state.triggeredEvents.add(`insider-tip-q${state.quarter}`);
+    state.tipShredBoost = true;
+    feed("内幕消息：听说 SEC 下周要查账——本季度‘文件留存策略’效果翻倍。", "warn");
+    state.historyLog.push("内幕消息触发");
+  }
+
   if (state.secAttention >= 70 && !state.triggeredEvents.has("sec")) {
     state.triggeredEvents.add("sec");
     state.risk += 6;
@@ -495,7 +513,8 @@ function renderActionPanel() {
     const preview = document.getElementById("optimismPreview");
     const refresh = () => {
       const optimism = Number(slider.value);
-      preview.textContent = `若选 ${optimism}%：账面收益约 +$${((optimism - 45) * 5.5).toFixed(0)}M，SEC +${Math.max(1, ((optimism - 50) * 0.12).toFixed(0))}。`;
+      const gainBoost = 200 + (optimism - 50) * 4;
+      preview.textContent = `若选 ${optimism}%：账面收益约 +$${gainBoost.toFixed(0)}M，SEC +${Math.max(1, ((optimism - 50) * 0.12).toFixed(0))}。`;
     };
     slider.addEventListener("input", refresh);
     refresh();
@@ -503,7 +522,7 @@ function renderActionPanel() {
     document.getElementById("actionBtn").onclick = () => {
       if (state.actionDone) return;
       const optimism = Number(slider.value);
-      state.paperGain += (optimism - 45) * 5.5;
+      state.paperGain += 200 + (optimism - 50) * 4;
       state.forecastPaperGain = state.paperGain + 30;
       state.stock += optimism >= 90 ? 22 : 12;
       applyRiskPressure((optimism - 50) * 0.6);
@@ -550,7 +569,9 @@ function renderActionPanel() {
         state.stock += o.stock;
         applyRiskPressure(o.risk);
         state.realCash -= 35;
-        state.debt += o.debt * 0.65;
+        const hiddenDebt = o.debt * 0.65;
+        state.debt += hiddenDebt;
+        state.speHiddenDebt += hiddenDebt;
         state.totalAssets += o.debt * 0.4;
         state.secAttention += o.sec;
         state.whistleblowerPressure += o.whistle;
@@ -613,14 +634,17 @@ function renderActionPanel() {
     <p>终局操作包：</p>
     ${renderImpact("选择前影响预览", [
       "【启动文件留存策略 (Document Retention Policy)】碎纸机是CFO最好的朋友。在SEC敲门前，让那些不必要的草稿消失。",
-      "温和方案：私人账户 +$210M，风险 +28，SEC +7，股价 -18",
+      "分批方案：私人账户 +$120M，风险 +10，SEC +2，股价 -7",
+      "温和方案：私人账户 +$240M，风险 +18，SEC +5，股价 -14",
+      "极速方案：私人账户 +$420M，风险 +34，SEC +10，股价 -26",
     ])}
     <div class="choices" id="endChoices"></div>
   `;
 
   const opts = [
-    { label: "【启动文件留存策略】极速套现 + 全面碎纸 + 强硬封口", cash: 360, risk: 42, stockDrop: 30, sec: 10, corruption: 3 },
-    { label: "【启动文件留存策略】温和套现 + 选择性销毁 + 叙事控场", cash: 210, risk: 28, stockDrop: 18, sec: 5, corruption: 2 },
+    { label: "【分批套现】小额减持 + 控制舆情（私人账户 +$120M / 风险 +10 / SEC +2 / 股价 -7）", cash: 120, risk: 10, stockDrop: 7, sec: 2, corruption: 1 },
+    { label: "【启动文件留存策略】温和套现 + 选择性销毁（私人账户 +$240M / 风险 +18 / SEC +5 / 股价 -14）", cash: 240, risk: 18, stockDrop: 14, sec: 5, corruption: 2 },
+    { label: "【启动文件留存策略】极速套现 + 全面碎纸 + 强硬封口（私人账户 +$420M / 风险 +34 / SEC +10 / 股价 -26）", cash: 420, risk: 34, stockDrop: 26, sec: 10, corruption: 3 },
   ];
 
   const holder = document.getElementById("endChoices");
@@ -631,17 +655,19 @@ function renderActionPanel() {
     btn.disabled = state.actionDone;
     btn.onclick = () => {
       if (state.actionDone) return;
-      state.privateAccount += o.cash;
-      state.realCash -= o.cash * 0.33;
-      state.stock -= o.stockDrop;
-      applyRiskPressure(o.risk);
-      state.secAttention += o.sec;
+      const tipFactor = state.tipShredBoost ? 0.5 : 1;
+      state.privateAccount += o.cash + (state.tipShredBoost ? 40 : 0);
+      state.realCash -= o.cash * 0.3;
+      state.stock -= o.stockDrop * (state.tipShredBoost ? 0.85 : 1);
+      applyRiskPressure(o.risk * tipFactor);
+      state.secAttention += o.sec * tipFactor;
       state.mediaHeat += 9;
       state.whistleblowerPressure += 9;
       bumpCorruption(o.corruption);
       state.actionDone = true;
       state.historyLog.push(`Q4 套现：${o.cash}M`);
-      state.lastActionSummary = o.cash > 300 ? "极速套现" : "温和套现";
+      state.lastActionSummary = o.cash > 300 ? "极速套现" : (o.cash > 180 ? "温和套现" : "分批套现");
+      if (state.tipShredBoost) feed("内幕风声应验：‘文件留存策略’本季效果翻倍，调查节奏被明显拖慢。", "good");
       feed("会后纪要：高管强调‘与公司共命运’，并提前预定了离岛机票。", "bad");
       render();
     };
@@ -831,7 +857,7 @@ function resolveQuarterRandomEvent(onDone) {
 
 function exerciseOptions() {
   if (state.exercisedThisQuarter || state.personalOptions <= 0) return;
-  const units = Math.min(20, state.personalOptions);
+  const units = Math.min(12, state.personalOptions);
   const grossProceeds = units * state.stock * 0.02;
   const liquidityCap = Math.max(6, state.realCash * 0.18);
   const proceeds = Math.min(grossProceeds, liquidityCap);
@@ -840,7 +866,7 @@ function exerciseOptions() {
   state.realCash -= proceeds * 0.3;
   state.stock -= Math.max(0.4, units * 0.02);
   applyRiskPressure(3);
-  const crashChance = Math.min(0.65, 0.18 + units * 0.01 + state.risk / 220);
+  const crashChance = Math.min(0.55, 0.08 + units * 0.009 + state.risk / 260);
   if (Math.random() < crashChance) {
     const crashDrop = 6 + Math.random() * 8;
     state.stock -= crashDrop;
@@ -852,6 +878,25 @@ function exerciseOptions() {
   state.exercisedThisQuarter = true;
   state.historyLog.push(`期权变现：${units}份(${formatMoney(proceeds)})`);
   feed(`你按 $${state.stock.toFixed(1)} 执行 ${units} 份期权，到账 ${formatMoney(proceeds)}（受流动性上限约束）。`, "warn");
+  render();
+}
+
+function runLobbying() {
+  if (state.lobbyingUsedThisQuarter) return;
+  const spend = Math.min(220, Math.max(120, state.realCash * 0.22));
+  if (state.realCash < spend) {
+    feed("公关与游说失败：现金不足以打通关键走廊。", "warn");
+    return;
+  }
+  state.realCash -= spend;
+  const reducePct = 0.18 + Math.min(0.12, state.charisma / 500);
+  const riskDrop = state.risk * reducePct;
+  state.risk = Math.max(0, state.risk - riskDrop);
+  state.secAttention = Math.max(0, state.secAttention - 6);
+  state.mediaHeat = Math.max(0, state.mediaHeat - 4);
+  state.lobbyingUsedThisQuarter = true;
+  state.historyLog.push(`游说：-${formatMoney(spend)} / 风险-${riskDrop.toFixed(1)}`);
+  feed(`你砸下 ${formatMoney(spend)} 做政治游说，风险下降 ${riskDrop.toFixed(1)} 点，换到一季喘息。`, "good");
   render();
 }
 
@@ -926,7 +971,10 @@ function handleCashCrisisIfNeeded(onDone) {
 
 function settleQuarterCore() {
   const operatingCost = 110 + state.quarter * 10;
-  const interest = (120 + state.quarter * 15) + state.debt * 0.035;
+  const baseInterest = state.debt * 0.08;
+  const speMultiplier = state.quarter <= 2 ? 0.02 : (state.quarter === 3 ? 0.08 : 0.32);
+  const speInterest = state.speHiddenDebt * speMultiplier;
+  const interest = baseInterest + speInterest;
   state.realCash -= operatingCost + interest;
   handleCashCrisisIfNeeded(settleQuarterPostFinance);
 }
@@ -960,7 +1008,7 @@ function settleQuarterPostFinance() {
   if (state.mediaHeat < 55) state.secAttention = Math.max(0, state.secAttention - 2);
   state.mediaHeat = Math.max(0, state.mediaHeat - 4);
   state.whistleblowerPressure = Math.max(0, state.whistleblowerPressure - 3);
-  state.risk = Math.max(0, Math.min(115, state.risk));
+  state.risk = Math.max(0, Math.min(140, state.risk));
   clampInvestigation();
   document.getElementById("report").textContent = generateReportText();
 
@@ -975,6 +1023,8 @@ function settleQuarterPostFinance() {
   state.auditDone = false;
   state.callDone = false;
   state.randomEventResolved = false;
+  state.lobbyingUsedThisQuarter = false;
+  state.tipShredBoost = false;
   feed("会后总结：董事会一致认为‘透明度是个可以分期实现的目标’。", "warn");
   render();
 }
@@ -993,9 +1043,9 @@ function endGame() {
   state.prisonYears = Math.max(0, Math.round((state.risk * 0.18) + (state.secAttention > 85 ? 8 : 0) - (state.privateAccount / 80)));
 
   let ending;
-  if (state.risk > 90 || state.secAttention > 98 || state.stock < 10) {
+  if (state.risk > 120 || (state.secAttention > 98 && state.privateAccount < 260)) {
     ending = ["F级：替罪羔羊", "法官判处你24年徒刑。你成为了贪婪的代名词，画像被印进所有商学院反面教材。"];
-  } else if (state.risk < 50 && state.privateAccount > 380 && state.secAttention < 90) {
+  } else if (state.risk < 55 && state.privateAccount > 340 && state.secAttention < 92) {
     ending = ["S级：金融教父", "你成功在雪崩前退休。现在你在开曼群岛游艇上看着安然破产新闻，彷佛这只是别人的故事。"];
   } else if (state.risk < 70 && state.privateAccount > 100) {
     ending = ["A级：优雅脱身", "你名义上被判两年，但在精英律师团操作下只剩社区服务；海外账户足够你后半生无忧。"];
@@ -1003,6 +1053,18 @@ function endGame() {
   } else {
     ending = ["B级：平庸之辈", "公司倒闭了，你也没捞到多少。余生将在无穷无尽的民事诉讼中被反复传唤。"];
   }
+
+  const failureFlavor = state.risk > 120
+    ? "失败简报：SEC 突击检查了休斯顿总部，碎纸机因为过热而停机了。"
+    : state.secAttention > 98
+      ? "失败简报：调查在清晨同步落地，你的法务团队先看到了手铐。"
+      : "失败简报：卖盘先于公告，市场替检察官写好了起诉提纲。";
+
+  const failureTitle = state.risk > 120
+    ? "头衔：世纪大骗子"
+    : state.quarter <= 2
+      ? "头衔：初级背锅侠"
+      : "头衔：高级背锅侠";
 
   const satiricalJudge = state.privateAccount >= 100 && state.prisonYears === 0
     ? "讽刺评语：你就是现代金融教父，在避税天堂过上了‘ESG 讲师’生活。"
@@ -1016,6 +1078,8 @@ function endGame() {
     `市场叙事：${state.historyLog.find((x) => x.startsWith("会议")) || "低调回应"}`,
     `个人套现：${state.historyLog.filter((x) => x.startsWith("期权变现")).join("、") || "未执行"}`,
     `第四季度大审判：资产 ${formatMoney(state.privateAccount)} / 入狱 ${state.prisonYears} 年`,
+    ending[0].startsWith("F级") ? failureFlavor : "逃生简报：你把崩塌留给公司，把流动性留给自己。",
+    ending[0].startsWith("F级") ? failureTitle : "头衔：成功的骗子",
     satiricalJudge,
   ];
 
@@ -1053,6 +1117,7 @@ function render() {
 
 document.getElementById("nextQuarterBtn").addEventListener("click", settleQuarter);
 document.getElementById("exerciseBtn").addEventListener("click", exerciseOptions);
+document.getElementById("lobbyingBtn").addEventListener("click", runLobbying);
 document.getElementById("closeQuoteBtn").addEventListener("click", () => document.getElementById("quoteModal").classList.add("hidden"));
 
 feed("议程启动：利润可以先到，后果会准时到。", "warn");
