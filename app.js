@@ -1,106 +1,114 @@
 const MAX_TURNS = 12;
 const IPO_TARGETS = {
-  revenue: 260,
-  netIncomeMargin: 0.12,
-  operatingCashFlow: 15,
-  complianceRiskMax: 42,
-  cash: 35,
-  marketShare: 0.23,
+  revenue: 240,
+  netIncomeMargin: 0.1,
+  operatingCashFlow: 10,
+  complianceRiskMax: 45,
+  cash: 28,
+  marketShare: 0.2,
+};
+
+const INDUSTRY_PRESETS = {
+  saas: {
+    name: "SaaS",
+    base: { revenue: 110, cogsRate: 0.32, salesExpenseRate: 0.2, adminExpenseRate: 0.11, rndExpenseRate: 0.13, ar: 50, inventory: 6, fixedAssets: 40, ap: 18, shortDebt: 30, longDebt: 24, marketDemand: 1.02, marketShare: 0.11, productQuality: 1.05, brandStrength: 1 },
+  },
+  manufacturing: {
+    name: "制造业",
+    base: { revenue: 130, cogsRate: 0.48, salesExpenseRate: 0.14, adminExpenseRate: 0.1, rndExpenseRate: 0.07, ar: 42, inventory: 28, fixedAssets: 75, ap: 26, shortDebt: 38, longDebt: 32, marketDemand: 1, marketShare: 0.13, productQuality: 1, brandStrength: 0.98 },
+  },
+  consumer: {
+    name: "消费品",
+    base: { revenue: 125, cogsRate: 0.4, salesExpenseRate: 0.18, adminExpenseRate: 0.1, rndExpenseRate: 0.08, ar: 36, inventory: 20, fixedAssets: 55, ap: 24, shortDebt: 34, longDebt: 28, marketDemand: 1.04, marketShare: 0.14, productQuality: 0.98, brandStrength: 1.08 },
+  },
 };
 
 const BACKGROUNDS = {
-  investment_banker: { name: "投行背景", growthBoost: 1.04, complianceDelta: 2.3, financingDiscount: 0.85 },
-  state_enterprise: { name: "国企背景", growthBoost: 1.0, complianceDelta: 0.9, financingDiscount: 0.95 },
-  big_four: { name: "四大背景", growthBoost: 1.01, complianceDelta: 1.0, financingDiscount: 1 },
+  investment_banker: { name: "投行背景", growthBoost: 1.03, complianceDelta: 2.2, financingDiscount: 0.86 },
+  state_enterprise: { name: "国企背景", growthBoost: 1, complianceDelta: 0.9, financingDiscount: 0.95 },
+  big_four: { name: "四大背景", growthBoost: 1.01, complianceDelta: 1.1, financingDiscount: 1 },
 };
 
 const DECISIONS = {
-  increase_marketing: {
-    category: "增长",
-    name: "增加营销投入",
-    description: "拉升市场需求和品牌势能，短期费用上升",
-    preview: "Demand +0.06, Brand +0.04, 销售费率 +2%",
-    apply: (s) => ({ ...s, marketDemand: Math.min(1.45, s.marketDemand + 0.06), brandStrength: Math.min(1.5, s.brandStrength + 0.04), salesExpenseRate: s.salesExpenseRate + 0.02, growthPressure: Math.max(0, s.growthPressure - 3) }),
-  },
-  improve_product: {
-    category: "增长",
-    name: "产品体验升级",
-    description: "提高产品力，长期提升份额转化",
-    preview: "Product +0.05, 研发费率 +1%",
-    apply: (s) => ({ ...s, productQuality: Math.min(1.5, s.productQuality + 0.05), rndExpenseRate: s.rndExpenseRate + 0.01 }),
-  },
-  rightsize_team: {
-    category: "降本",
-    name: "组织瘦身",
-    description: "裁员降本，提高利润率，增长承压",
-    preview: "销售费率 -1.5%, 管理费率 -1.2%, Growth压力 +3",
-    apply: (s) => ({ ...s, salesExpenseRate: Math.max(0.08, s.salesExpenseRate - 0.015), adminExpenseRate: Math.max(0.06, s.adminExpenseRate - 0.012), growthPressure: s.growthPressure + 3, complianceRisk: s.complianceRisk + 1 }),
-  },
-  ops_excellence: {
-    category: "降本",
-    name: "运营提效",
-    description: "优化供应链和流程，降低成本率",
-    preview: "COGS率 -1.5%, 库存 -8%",
-    apply: (s) => ({ ...s, cogsRate: Math.max(0.25, s.cogsRate - 0.015), inventory: s.inventory * 0.92 }),
-  },
-  compliance_audit: {
-    category: "风控",
-    name: "强化内控审计",
-    description: "降低合规风险，增加管理费用",
-    preview: "Compliance -6, 管理费率 +1%",
-    apply: (s) => ({ ...s, adminExpenseRate: s.adminExpenseRate + 0.01, complianceRisk: Math.max(0, s.complianceRisk - 6) }),
-  },
-  ar_task_force: {
-    category: "风控",
-    name: "应收专项治理",
-    description: "加速回款，牺牲一部分增长",
-    preview: "AR -20%, Revenue -1.5%",
-    apply: (s) => ({ ...s, ar: s.ar * 0.8, revenue: s.revenue * 0.985, growthPressure: s.growthPressure + 2 }),
-  },
-  bridge_financing: {
-    category: "融资",
-    name: "过桥融资",
-    description: "快速补充现金，但融资成本提高",
-    preview: "短债 +12, 短债利率 +0.3%",
-    apply: (s) => ({ ...s, shortDebt: s.shortDebt + 12, interestRateShort: s.interestRateShort + 0.003 }),
-  },
-  equity_financing: {
-    category: "融资",
-    name: "股权融资",
-    description: "补现金、降风险，但发生股权稀释",
-    preview: "Dilution +3%, 合规风险 -2",
-    apply: (s) => ({ ...s, equityDilution: Math.min(0.4, s.equityDilution + 0.03), complianceRisk: Math.max(0, s.complianceRisk - 2) }),
-  },
+  increase_marketing: { category: "增长", name: "增加营销投入", description: "扩大获客", preview: "Demand +0.05, Brand +0.03, 销售费率 +1.5%", apply: (s) => ({ ...s, marketDemand: Math.min(1.45, s.marketDemand + 0.05), brandStrength: Math.min(1.5, s.brandStrength + 0.03), salesExpenseRate: s.salesExpenseRate + 0.015, growthPressure: Math.max(0, s.growthPressure - 3) }) },
+  improve_product: { category: "增长", name: "产品体验升级", description: "提高产品力", preview: "Product +0.04, 研发费率 +1%", apply: (s) => ({ ...s, productQuality: Math.min(1.5, s.productQuality + 0.04), rndExpenseRate: s.rndExpenseRate + 0.01 }) },
+  rightsize_team: { category: "降本", name: "组织瘦身", description: "降费提效", preview: "销售费率 -1.2%, 管理费率 -1%", apply: (s) => ({ ...s, salesExpenseRate: Math.max(0.08, s.salesExpenseRate - 0.012), adminExpenseRate: Math.max(0.06, s.adminExpenseRate - 0.01), growthPressure: s.growthPressure + 2, complianceRisk: s.complianceRisk + 1 }) },
+  ops_excellence: { category: "降本", name: "运营提效", description: "降低成本率", preview: "COGS率 -1.2%, 库存 -7%", apply: (s) => ({ ...s, cogsRate: Math.max(0.24, s.cogsRate - 0.012), inventory: s.inventory * 0.93 }) },
+  compliance_audit: { category: "风控", name: "强化内控审计", description: "降低合规风险", preview: "Compliance -6, 管理费率 +1%", apply: (s) => ({ ...s, complianceRisk: Math.max(0, s.complianceRisk - 6), adminExpenseRate: s.adminExpenseRate + 0.01 }) },
+  ar_task_force: { category: "风控", name: "应收专项治理", description: "回款改善", preview: "AR -20%, Revenue -1%", apply: (s) => ({ ...s, ar: s.ar * 0.8, revenue: s.revenue * 0.99 }) },
+  bridge_financing: { category: "融资", name: "过桥融资", description: "快但贵", preview: "短债 +10, 短债利率 +0.25%", apply: (s) => ({ ...s, shortDebt: s.shortDebt + 10, interestRateShort: s.interestRateShort + 0.0025 }) },
+  equity_financing: { category: "融资", name: "股权融资", description: "缓债务但稀释", preview: "Dilution +3%, 合规风险 -2", apply: (s) => ({ ...s, equityDilution: Math.min(0.4, s.equityDilution + 0.03), complianceRisk: Math.max(0, s.complianceRisk - 2) }) },
 };
 
 const EVENTS = [
   {
-    id: "policy_subsidy",
-    name: "政策补贴窗口",
-    desc: "政府鼓励创新，合规良好企业可获现金补贴。",
-    condition: (g) => g.company.complianceRisk < 40,
-    apply: (s) => ({ ...s, cash: s.cash + 8, complianceRisk: Math.max(0, s.complianceRisk - 1) }),
-  },
-  {
-    id: "competitor_price_war",
-    name: "竞品价格战",
-    desc: "竞争对手降价，市场份额承压。",
-    condition: () => true,
-    apply: (s) => ({ ...s, marketShare: Math.max(0.06, s.marketShare - 0.02), revenue: s.revenue * 0.97 }),
-  },
-  {
-    id: "tax_audit",
+    id: "tax_check",
     name: "税务抽查",
-    desc: "税务机关抽查，内控薄弱则罚款。",
-    condition: () => true,
-    apply: (s) => (s.complianceRisk > 48 ? { ...s, cash: s.cash - 10, complianceRisk: s.complianceRisk + 3 } : { ...s, complianceRisk: Math.max(0, s.complianceRisk - 2) }),
+    desc: "监管部门开展专项税务抽查。",
+    options: [
+      {
+        key: "strict",
+        label: "主动配合（合规优先）",
+        effect: (s) => ({ ...s, complianceRisk: Math.max(0, s.complianceRisk - 3), adminExpenseRate: s.adminExpenseRate + 0.003 }),
+        passChance: (g) => Math.min(0.95, 0.45 + (55 - g.company.complianceRisk) / 100),
+        onPass: (s) => ({ ...s, cash: s.cash + 2 }),
+        onFail: (s) => ({ ...s, cash: s.cash - 6, complianceRisk: s.complianceRisk + 4 }),
+      },
+      {
+        key: "delay",
+        label: "拖延应对（现金优先）",
+        effect: (s) => ({ ...s, adminExpenseRate: Math.max(0.05, s.adminExpenseRate - 0.002) }),
+        passChance: () => 0.35,
+        onPass: (s) => ({ ...s, cash: s.cash + 1 }),
+        onFail: (s) => ({ ...s, cash: s.cash - 10, complianceRisk: s.complianceRisk + 7 }),
+      },
+    ],
   },
   {
-    id: "star_sales_lead",
-    name: "明星销售签约",
-    desc: "关键销售负责人加入，短期有助于获客。",
-    condition: (g) => g.company.salesExpenseRate > 0.14,
-    apply: (s) => ({ ...s, marketDemand: Math.min(1.5, s.marketDemand + 0.05), brandStrength: Math.min(1.5, s.brandStrength + 0.03) }),
+    id: "price_war",
+    name: "竞品价格战",
+    desc: "竞争对手大幅降价抢份额。",
+    options: [
+      {
+        key: "follow",
+        label: "跟随降价保份额",
+        effect: (s) => ({ ...s, marketShare: Math.min(0.5, s.marketShare + 0.01), cogsRate: s.cogsRate + 0.004 }),
+        passChance: (g) => Math.min(0.9, 0.5 + (g.company.brandStrength - 1) * 0.5),
+        onPass: (s) => ({ ...s, revenue: s.revenue * 1.02 }),
+        onFail: (s) => ({ ...s, revenue: s.revenue * 0.96 }),
+      },
+      {
+        key: "hold",
+        label: "坚持价格保利润",
+        effect: (s) => ({ ...s, cogsRate: Math.max(0.2, s.cogsRate - 0.003) }),
+        passChance: (g) => Math.min(0.88, 0.45 + (g.company.productQuality - 1) * 0.7),
+        onPass: (s) => ({ ...s, marketShare: s.marketShare - 0.005, revenue: s.revenue * 1.01 }),
+        onFail: (s) => ({ ...s, marketShare: s.marketShare - 0.02, revenue: s.revenue * 0.95 }),
+      },
+    ],
+  },
+  {
+    id: "subsidy_window",
+    name: "政策补贴窗口",
+    desc: "地方产业政策开放补贴申请。",
+    options: [
+      {
+        key: "apply",
+        label: "申报补贴（合规材料）",
+        effect: (s) => ({ ...s, adminExpenseRate: s.adminExpenseRate + 0.002 }),
+        passChance: (g) => Math.min(0.92, 0.45 + (50 - g.company.complianceRisk) / 90),
+        onPass: (s) => ({ ...s, cash: s.cash + 9 }),
+        onFail: (s) => ({ ...s, cash: s.cash - 2 }),
+      },
+      {
+        key: "skip",
+        label: "放弃补贴（专注业务）",
+        effect: (s) => ({ ...s, marketDemand: s.marketDemand + 0.01 }),
+        passChance: () => 1,
+        onPass: (s) => s,
+        onFail: (s) => s,
+      },
+    ],
   },
 ];
 
@@ -108,49 +116,56 @@ let game;
 let selectedTab = "pnl";
 let selectedDecisions = [];
 
-function createInitialState(backgroundId) {
+function createInitialState(backgroundId, industryId) {
+  const industry = INDUSTRY_PRESETS[industryId];
+  const base = industry.base;
   const company = {
-    revenue: 120,
-    cogsRate: 0.42,
-    salesExpenseRate: 0.16,
-    adminExpenseRate: 0.11,
-    rndExpenseRate: 0.09,
+    revenue: base.revenue,
+    cogsRate: base.cogsRate,
+    salesExpenseRate: base.salesExpenseRate,
+    adminExpenseRate: base.adminExpenseRate,
+    rndExpenseRate: base.rndExpenseRate,
     depreciation: 4,
     taxRate: 0.2,
     cash: 45,
-    ar: 48,
-    inventory: 20,
-    fixedAssets: 60,
-    ap: 22,
-    shortDebt: 35,
-    longDebt: 28,
+    ar: base.ar,
+    inventory: base.inventory,
+    fixedAssets: base.fixedAssets,
+    ap: base.ap,
+    shortDebt: base.shortDebt,
+    longDebt: base.longDebt,
     interestRateShort: 0.02,
     interestRateLong: 0.012,
     complianceRisk: 25,
     growthPressure: 35,
-    marketDemand: 1,
-    marketShare: 0.12,
-    productQuality: 1,
-    brandStrength: 1,
+    marketDemand: base.marketDemand,
+    marketShare: base.marketShare,
+    productQuality: base.productQuality,
+    brandStrength: base.brandStrength,
     financingWindow: 1,
     equityDilution: 0,
   };
-  const prev = { ...company, revenue: 100, ar: 38, inventory: 16, ap: 18, cash: 40, marketShare: 0.1 };
-  const statements = buildStatements(company, prev);
+
+  const previous = { ...company, revenue: company.revenue * 0.9, ar: company.ar * 0.9, inventory: company.inventory * 0.92, ap: company.ap * 0.9, cash: 40 };
+  const statements = buildStatements(company, previous);
 
   return {
     turn: 1,
     maxTurns: MAX_TURNS,
     backgroundId,
+    industryId,
     company,
-    previous: prev,
+    previous,
     statements,
-    ratios: buildRatios(company, prev, statements),
-    unlocked: new Set(["increase_marketing", "improve_product", "rightsize_team", "ops_excellence", "compliance_audit", "ar_task_force", "bridge_financing", "equity_financing"]),
-    logs: ["游戏开始：本季度必须选择 2 个行动。"],
+    ratios: buildRatios(company, previous, statements),
+    unlocked: new Set(Object.keys(DECISIONS)),
+    logs: ["游戏开始：先选 2 个决策，再处理随机事件。"],
     events: [],
+    pendingEvent: null,
+    pendingCompany: null,
     gameOver: false,
     outcome: "ongoing",
+    annualFailures: 0,
   };
 }
 
@@ -180,11 +195,7 @@ function buildStatements(current, previous) {
   const liabilities = current.ap + current.shortDebt + current.longDebt;
   const equity = assets - liabilities;
 
-  return {
-    pnl: { revenue, cogs, grossProfit, salesExpense, adminExpense, rndExpense, depreciation, ebit, interestExpense, preTaxIncome, tax, netIncome },
-    cf: { operatingCashFlow, investingCashFlow, financingCashFlow, netCashChange, endingCash },
-    bs: { assets, liabilities, equity },
-  };
+  return { pnl: { revenue, cogs, grossProfit, salesExpense, adminExpense, rndExpense, depreciation, ebit, interestExpense, preTaxIncome, tax, netIncome }, cf: { operatingCashFlow, investingCashFlow, financingCashFlow, netCashChange, endingCash }, bs: { assets, liabilities, equity } };
 }
 
 function buildRatios(current, previous, statements) {
@@ -199,45 +210,54 @@ function buildRatios(current, previous, statements) {
   };
 }
 
-function applyMarketAndFinancing(company, backgroundId, localSelected) {
+function applyMarketAndFinancing(company, backgroundId, selected) {
   const bg = BACKGROUNDS[backgroundId];
-  const marketShock = 0.96 + Math.random() * 0.1;
-  const financingShock = 0.94 + Math.random() * 0.14;
+  const marketShock = 0.98 + Math.random() * 0.06;
+  const financingShock = 0.95 + Math.random() * 0.1;
 
   const demand = company.marketDemand * marketShock;
-  const competitiveness = 0.5 * company.productQuality + 0.3 * company.brandStrength + 0.2 * bg.growthBoost;
-  const share = Math.min(0.45, Math.max(0.05, company.marketShare + (competitiveness - 1) * 0.04));
-  const revenueMultiplier = demand * (0.72 + share) * bg.growthBoost;
+  const competitiveness = 0.5 * company.productQuality + 0.32 * company.brandStrength + 0.18 * bg.growthBoost;
+  const share = Math.min(0.45, Math.max(0.06, company.marketShare + (competitiveness - 1) * 0.03));
+  const revenueMultiplier = demand * (0.78 + share) * bg.growthBoost;
 
-  const next = { ...company };
-  next.marketDemand = demand;
-  next.marketShare = share;
-  next.financingWindow = financingShock;
-  next.revenue = Math.max(35, company.revenue * revenueMultiplier);
-
-  if (localSelected.includes("equity_financing")) {
-    const capital = 18 * financingShock * bg.financingDiscount;
-    next.cash += capital;
-  }
-
+  const next = { ...company, marketDemand: demand, marketShare: share, financingWindow: financingShock, revenue: Math.max(40, company.revenue * revenueMultiplier) };
+  if (selected.includes("equity_financing")) next.cash += 16 * financingShock * bg.financingDiscount;
   return next;
 }
 
-function applyRandomEvent(state) {
-  const candidates = EVENTS.filter((e) => e.condition(state));
-  if (!candidates.length) return { company: state.company, eventLog: null };
+function pickRandomEvent() {
+  return EVENTS[Math.floor(Math.random() * EVENTS.length)];
+}
 
-  const event = candidates[Math.floor(Math.random() * candidates.length)];
-  const company = event.apply({ ...state.company });
-  return { company, eventLog: `事件：${event.name} - ${event.desc}` };
+function evaluateAnnualKpi(nextState) {
+  if (![5, 9].includes(nextState.turn)) return nextState;
+
+  const margin = nextState.ratios.netMargin;
+  const pass = nextState.ratios.growthRate >= 0.06 && margin >= 0.06 && nextState.statements.cf.operatingCashFlow > 0 && nextState.company.complianceRisk < 60;
+
+  if (pass) {
+    nextState.logs.unshift(`年度绩效考核通过：增长 ${(nextState.ratios.growthRate * 100).toFixed(1)}%，净利率 ${(margin * 100).toFixed(1)}%。`);
+    return nextState;
+  }
+
+  nextState.annualFailures += 1;
+  nextState.logs.unshift("年度绩效考核未通过：董事会启动问责。再失败一次将被解聘。");
+  if (nextState.annualFailures >= 2) {
+    nextState.outcome = "fired";
+    nextState.gameOver = true;
+    nextState.logs.unshift("你被董事会解聘，游戏结束。");
+  }
+
+  return nextState;
 }
 
 function getOutcome(nextState) {
+  if (nextState.outcome === "fired") return "fired";
   if (nextState.company.cash < 0) return "cash_crash";
   if (nextState.company.complianceRisk >= 75) return "compliance_blowup";
 
   if (nextState.turn > nextState.maxTurns) {
-    const margin = nextState.statements.pnl.revenue > 0 ? nextState.statements.pnl.netIncome / nextState.statements.pnl.revenue : 0;
+    const margin = nextState.ratios.netMargin;
     const ipoReady =
       nextState.company.revenue >= IPO_TARGETS.revenue &&
       margin >= IPO_TARGETS.netIncomeMargin &&
@@ -251,50 +271,67 @@ function getOutcome(nextState) {
   return "ongoing";
 }
 
-function playTurn() {
-  if (!game || game.gameOver) return;
-
+function startTurnResolution() {
+  if (!game || game.gameOver || game.pendingEvent) return;
   if (selectedDecisions.length !== 2) {
-    game.logs.unshift("请先选择 2 个行动再结算。");
+    game.logs.unshift("请先选择 2 个行动再提交。");
     render();
     return;
   }
 
   let company = { ...game.company };
-  const beforeRevenue = company.revenue;
   for (const id of selectedDecisions) company = DECISIONS[id].apply(company);
 
   company = applyMarketAndFinancing(company, game.backgroundId, selectedDecisions);
   company.complianceRisk += BACKGROUNDS[game.backgroundId].complianceDelta;
-  company.growthPressure = Math.max(0, company.growthPressure + (company.revenue > beforeRevenue ? -2 : 2));
+  company.growthPressure = Math.max(0, company.growthPressure + (company.revenue > game.company.revenue ? -2 : 2));
 
-  const eventResult = applyRandomEvent({ ...game, company });
-  company = eventResult.company;
+  game.pendingCompany = company;
+  game.pendingEvent = pickRandomEvent();
+  game.logs.unshift(`出现随机事件：${game.pendingEvent.name}，请选择应对方案。`);
+  render();
+}
+
+function resolveEvent(optionKey) {
+  if (!game || game.gameOver || !game.pendingEvent || !game.pendingCompany) return;
+
+  const event = game.pendingEvent;
+  const option = event.options.find((o) => o.key === optionKey);
+  if (!option) return;
+
+  let company = option.effect({ ...game.pendingCompany });
+  const passChance = Math.max(0.05, Math.min(0.98, option.passChance({ ...game, company })));
+  const passed = Math.random() < passChance;
+  company = passed ? option.onPass(company) : option.onFail(company);
 
   const firstPass = buildStatements(company, game.company);
   company.cash = firstPass.cf.endingCash + (company.cash - game.company.cash);
   const statements = buildStatements(company, game.company);
   const ratios = buildRatios(company, game.company, statements);
 
-  const nextState = {
+  let nextState = {
     ...game,
     turn: game.turn + 1,
     previous: game.company,
     company,
     statements,
     ratios,
-    events: eventResult.eventLog ? [eventResult.eventLog, ...game.events].slice(0, 12) : game.events,
+    pendingEvent: null,
+    pendingCompany: null,
+    events: [`${event.name} - 选择「${option.label}」：${passed ? "通过" : "失败"}`, ...game.events].slice(0, 12),
     logs: [
-      `Q${game.turn}结算：Revenue Δ ${fmt(company.revenue - beforeRevenue)}, 净利率 ${(ratios.netMargin * 100).toFixed(1)}%, CFO ${fmt(statements.cf.operatingCashFlow)}`,
+      `Q${game.turn}结算：净利率 ${(ratios.netMargin * 100).toFixed(1)}%，CFO ${fmt(statements.cf.operatingCashFlow)}。`,
+      `事件结果：${event.name} ${passed ? "通过" : "失败"}（成功率 ${(passChance * 100).toFixed(0)}%）。`,
       ...game.logs,
-    ].slice(0, 40),
+    ].slice(0, 45),
   };
+
+  selectedDecisions = [];
+  nextState = evaluateAnnualKpi(nextState);
 
   const outcome = getOutcome(nextState);
   nextState.outcome = outcome;
-  nextState.gameOver = outcome !== "ongoing";
-
-  if (eventResult.eventLog) nextState.logs.unshift(eventResult.eventLog);
+  if (outcome !== "ongoing") nextState.gameOver = true;
 
   if (outcome === "cash_crash") nextState.logs.unshift("失败：现金流断裂，公司进入破产保护。游戏结束。");
   else if (outcome === "compliance_blowup") nextState.logs.unshift("失败：合规爆雷，IPO 终止。游戏结束。");
@@ -302,17 +339,11 @@ function playTurn() {
   else if (outcome === "not_qualified") nextState.logs.unshift("Q12 结束：未达 IPO 标准。游戏结束。");
 
   game = nextState;
-  selectedDecisions = [];
   render();
 }
 
-function fmt(n) {
-  return Number.isFinite(n) ? n.toFixed(2) : "-";
-}
-
-function renderTable(rows) {
-  return `<table class="table">${rows.map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join("")}</table>`;
-}
+function fmt(n) { return Number.isFinite(n) ? n.toFixed(2) : "-"; }
+function renderTable(rows) { return `<table class="table">${rows.map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join("")}</table>`; }
 
 function badge(value, goodThreshold, warnThreshold, lowerIsBetter = false) {
   if (lowerIsBetter) {
@@ -326,10 +357,9 @@ function badge(value, goodThreshold, warnThreshold, lowerIsBetter = false) {
 }
 
 function renderIpoProgress() {
-  const margin = game.statements.pnl.revenue > 0 ? game.statements.pnl.netIncome / game.statements.pnl.revenue : 0;
   const items = [
     ["收入规模", game.company.revenue, IPO_TARGETS.revenue, false],
-    ["净利率", margin, IPO_TARGETS.netIncomeMargin, false],
+    ["净利率", game.ratios.netMargin, IPO_TARGETS.netIncomeMargin, false],
     ["经营现金流", game.statements.cf.operatingCashFlow, IPO_TARGETS.operatingCashFlow, false],
     ["现金储备", game.company.cash, IPO_TARGETS.cash, false],
     ["市场份额", game.company.marketShare, IPO_TARGETS.marketShare, false],
@@ -356,17 +386,29 @@ function groupDecisions() {
   return groups;
 }
 
+function renderEventPanel() {
+  if (!game.pendingEvent) {
+    document.getElementById("event-feed").innerHTML = game.events.length ? game.events.map((e) => `<div>${e}</div>`).join("") : "<div>暂无事件（提交决策后会触发）</div>";
+    return;
+  }
+
+  const options = game.pendingEvent.options
+    .map((o) => `<button class="event-option" data-event-option="${o.key}">${o.label}</button>`)
+    .join("");
+
+  document.getElementById("event-feed").innerHTML = `<div class="event-card"><div><strong>${game.pendingEvent.name}</strong></div><div>${game.pendingEvent.desc}</div>${options}</div>`;
+}
+
 function render() {
   if (!game) return;
-  document.getElementById("meta").innerHTML = `回合 Q${Math.min(game.turn, game.maxTurns)} / ${game.maxTurns}<br/>背景：${BACKGROUNDS[game.backgroundId].name}${game.gameOver ? "<br/>状态：已结束" : ""}`;
+
+  document.getElementById("meta").innerHTML = `行业：${INDUSTRY_PRESETS[game.industryId].name}<br/>回合 Q${Math.min(game.turn, game.maxTurns)} / ${game.maxTurns}<br/>背景：${BACKGROUNDS[game.backgroundId].name}${game.gameOver ? "<br/>状态：已结束" : ""}`;
 
   document.getElementById("triad").innerHTML = [
     ["现金压力", Math.max(0, 100 - game.company.cash), 25, 60, true],
     ["增长压力", game.company.growthPressure, 20, 45, true],
     ["合规风险", game.company.complianceRisk, 25, 50, true],
-  ]
-    .map(([name, val, good, warn, lower]) => `<div class="metric"><span>${name}</span><span class="badge ${badge(val, good, warn, lower)}">${fmt(val)}</span></div>`)
-    .join("");
+  ].map(([name, val, good, warn, lower]) => `<div class="metric"><span>${name}</span><span class="badge ${badge(val, good, warn, lower)}">${fmt(val)}</span></div>`).join("");
 
   renderIpoProgress();
 
@@ -377,13 +419,13 @@ function render() {
     ["品牌势能", game.company.brandStrength],
     ["融资窗口", game.company.financingWindow],
     ["累计股权稀释", game.company.equityDilution],
+    ["年度考核失败次数", game.annualFailures],
   ].map(([k, v]) => `<div class="metric"><span>${k}</span><span>${fmt(v)}</span></div>`).join("");
 
   const pnl = game.statements.pnl;
   const bs = game.statements.bs;
   const cf = game.statements.cf;
   const ratio = game.ratios;
-
   const map = {
     pnl: renderTable([["营业收入", fmt(pnl.revenue)], ["营业成本", fmt(pnl.cogs)], ["毛利", fmt(pnl.grossProfit)], ["销售费用", fmt(pnl.salesExpense)], ["管理费用", fmt(pnl.adminExpense)], ["研发费用", fmt(pnl.rndExpense)], ["EBIT", fmt(pnl.ebit)], ["净利润", fmt(pnl.netIncome)]]),
     bs: renderTable([["总资产", fmt(bs.assets)], ["总负债", fmt(bs.liabilities)], ["股东权益", fmt(bs.equity)], ["现金", fmt(game.company.cash)], ["应收", fmt(game.company.ar)], ["应付", fmt(game.company.ap)]]),
@@ -393,23 +435,19 @@ function render() {
   document.getElementById("statement-table").innerHTML = map[selectedTab];
 
   const grouped = groupDecisions();
-  const groupsHtml = Object.entries(grouped)
-    .map(([category, list], idx) => {
-      const inner = list
-        .map(([id, d]) => {
-          const active = selectedDecisions.includes(id);
-          return `<div class="decision ${active ? "selected" : ""}"><h4>${d.name}</h4><p>${d.description}<br><small>${d.preview}</small></p><button data-pick="${id}">${active ? "取消" : "选择"}</button></div>`;
-        })
-        .join("");
-      return `<details class="group" ${idx === 0 ? "open" : ""}><summary>${category}</summary>${inner}</details>`;
-    })
-    .join("");
+  document.getElementById("decision-groups").innerHTML = Object.entries(grouped).map(([category, list], idx) => {
+    const inner = list.map(([id, d]) => {
+      const active = selectedDecisions.includes(id);
+      return `<div class="decision ${active ? "selected" : ""}"><h4>${d.name}</h4><p>${d.description}<br><small>${d.preview}</small></p><button data-pick="${id}">${active ? "取消" : "选择"}</button></div>`;
+    }).join("");
+    return `<details class="group" ${idx === 0 ? "open" : ""}><summary>${category}</summary>${inner}</details>`;
+  }).join("");
 
-  document.getElementById("decision-groups").innerHTML = groupsHtml;
-  document.getElementById("decision-tip").textContent = game.gameOver ? "本局已结束，无法继续操作。" : `已选择 ${selectedDecisions.length}/2。再次点击已选项可取消。`;
-  document.getElementById("end-turn").disabled = selectedDecisions.length !== 2 || game.gameOver;
+  const submitDisabled = selectedDecisions.length !== 2 || game.gameOver || !!game.pendingEvent;
+  document.getElementById("decision-tip").textContent = game.gameOver ? "本局已结束。" : game.pendingEvent ? "请先处理当前随机事件。" : `已选择 ${selectedDecisions.length}/2。`;
+  document.getElementById("end-turn").disabled = submitDisabled;
 
-  document.getElementById("event-feed").innerHTML = game.events.length ? game.events.map((e) => `<div>${e}</div>`).join("") : "<div>暂无事件</div>";
+  renderEventPanel();
   document.getElementById("logs").innerHTML = game.logs.map((l) => `<div>${l}</div>`).join("");
 }
 
@@ -424,29 +462,30 @@ document.querySelectorAll(".tabs button").forEach((btn) => {
 
 document.getElementById("decision-groups").addEventListener("click", (e) => {
   const btn = e.target.closest("button[data-pick]");
-  if (!btn || game.gameOver) return;
-
+  if (!btn || game.gameOver || game.pendingEvent) return;
   const id = btn.dataset.pick;
-  const index = selectedDecisions.indexOf(id);
-  if (index >= 0) {
-    selectedDecisions.splice(index, 1);
-  } else if (selectedDecisions.length < 2) {
-    selectedDecisions.push(id);
-  } else {
-    game.logs.unshift("已选满 2 项，请先取消一项。");
-  }
+  const idx = selectedDecisions.indexOf(id);
+  if (idx >= 0) selectedDecisions.splice(idx, 1);
+  else if (selectedDecisions.length < 2) selectedDecisions.push(id);
+  else game.logs.unshift("已选满2项，请先取消一项。"), game.logs = game.logs.slice(0, 45);
   render();
 });
 
-document.getElementById("end-turn").addEventListener("click", playTurn);
-
-const dialog = document.getElementById("start-dialog");
-dialog.showModal();
-dialog.addEventListener("click", (e) => {
-  const btn = e.target.closest("button[data-bg]");
+document.getElementById("event-feed").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-event-option]");
   if (!btn) return;
-  game = createInitialState(btn.dataset.bg);
+  resolveEvent(btn.dataset.eventOption);
+});
+
+document.getElementById("end-turn").addEventListener("click", startTurnResolution);
+
+document.getElementById("start-game").addEventListener("click", () => {
+  const bg = document.getElementById("background-select").value;
+  const industry = document.getElementById("industry-select").value;
+  game = createInitialState(bg, industry);
   selectedDecisions = [];
-  dialog.close();
+  document.getElementById("start-dialog").close();
   render();
 });
+
+document.getElementById("start-dialog").showModal();

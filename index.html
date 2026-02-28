@@ -47,7 +47,7 @@
         <h2>决策面板（必须选 2 项）</h2>
         <div class="decision-tip" id="decision-tip"></div>
         <div id="decision-groups"></div>
-        <button id="end-turn" class="primary">结算本季度</button>
+        <button id="end-turn" class="primary">提交决策并进入事件</button>
       </section>
 
       <section class="panel glass events">
@@ -62,12 +62,22 @@
     </main>
 
     <dialog id="start-dialog" class="glass">
-      <h3>选择你的 CFO 背景</h3>
-      <div class="bg-buttons">
-        <button data-bg="investment_banker">投行背景</button>
-        <button data-bg="state_enterprise">国企背景</button>
-        <button data-bg="big_four">四大背景</button>
-      </div>
+      <h3>选择开局配置</h3>
+      <label>行业
+        <select id="industry-select">
+          <option value="saas">SaaS</option>
+          <option value="manufacturing">制造业</option>
+          <option value="consumer">消费品</option>
+        </select>
+      </label>
+      <label>CFO 背景
+        <select id="background-select">
+          <option value="investment_banker">投行背景</option>
+          <option value="state_enterprise">国企背景</option>
+          <option value="big_four">四大背景</option>
+        </select>
+      </label>
+      <button id="start-game">开始游戏</button>
     </dialog>
 
     <script src="app.js" type="module"></script>
