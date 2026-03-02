@@ -6,7 +6,7 @@ const GAME_CONFIG = {
   boardQuarterDecay: 15,
   saveKey: "enron_save_v2",
   scenePermissions: {
-    desk: ["exerciseBtn", "lobbyingBtn", "routineBtn", "ledgerPanel", "phasePanel", "timelinePanel", "investigationPanel"],
+    desk: ["exerciseBtn", "lobbyingBtn", "routineBtn", "ledgerPanel", "timelinePanel", "investigationPanel"],
     warroom: ["actionPanel", "auditPanel", "reportPanel"],
     stage: ["callPanel", "ratingPanel"],
   },
@@ -619,8 +619,9 @@ function renderQuarterStatus() {
 
   const canSettle = state.actionDone && state.auditDone && state.callDone;
   const nextBtn = document.getElementById("nextQuarterBtn");
-  nextBtn.disabled = !canSettle;
-  nextBtn.style.display = canSettle ? "" : "none";
+  nextBtn.disabled = false;
+  nextBtn.style.display = "";
+  nextBtn.title = canSettle ? "已完成当季流程，可发布季度财报" : "请先完成当季度所有工作";
   if (!state.actionDone) setActiveScene("desk"); else if (!state.auditDone) setActiveScene("warroom"); else if (!state.callDone) setActiveScene("stage");
   document.getElementById("nextQuarterBtn").textContent = content.buttons?.nextQuarter || "[发布季度财报]";
   const exerciseBtn = document.getElementById("exerciseBtn");
@@ -967,7 +968,7 @@ function renderAuditPanel() {
     const btn = document.createElement("button");
     btn.className = "choice-btn";
     btn.textContent = o.label;
-    btn.disabled = state.auditDone || !!o.disabled;
+    if (state.auditDone || !!o.disabled) return;
     btn.onclick = () => {
       if (state.auditDone) return;
       o.apply();
@@ -1060,17 +1061,24 @@ function resolveQuarterRandomEvent(onDone) {
     btn.className = "choice-btn";
     btn.textContent = c.label;
     btn.onclick = () => {
-      const feedback = c.effect(state);
+      let feedback = "决策已执行，季度将继续推进。";
+      try {
+        feedback = c.effect.length >= 2 ? c.effect(state, feed) : c.effect(state);
+      } catch (err) {
+        console.warn("[random-event-choice]", err);
+        feed("该决策已记录，但系统反馈渲染异常；流程继续推进。", "warn");
+      }
       const keyMap = {
         1: ["insult", "yacht"],
         2: ["transparent", "delay"],
         3: ["deadstar", "fund"],
         4: ["deny", "scapegoat"],
       };
-      state.lastEventSummary = keyMap[eventKey][idx] || keyMap[eventKey][0];
+      const summaryKeys = keyMap[eventKey] || ["event-choice-a", "event-choice-b"];
+      state.lastEventSummary = summaryKeys[idx] || summaryKeys[0];
       state.randomEventResolved = true;
 
-      descNode.textContent = `选择结果：${feedback}`;
+      descNode.textContent = `选择结果：${feedback || "已执行。"}`;
       root.innerHTML = "";
       const confirm = document.createElement("button");
       confirm.className = "choice-btn";
@@ -1164,7 +1172,7 @@ function openLobbyingModal() {
     const btn = document.createElement("button");
     btn.className = "choice-btn";
     btn.textContent = o.label;
-    btn.disabled = (o.tier === "heavy" && state.heavyLobbyUsed);
+    if (o.tier === "heavy" && state.heavyLobbyUsed) return;
     btn.onclick = () => {
       runLobbying(o.tier);
       modal.classList.add("hidden");
@@ -1364,6 +1372,10 @@ function checkTemptationTriggers() {
 }
 
 function settleQuarter() {
+  if (!(state.actionDone && state.auditDone && state.callDone)) {
+    feed("请先完成当季度所有工作（核心任务 / 审计沟通 / 分析师会议）再发布季报。", "warn");
+    return;
+  }
   resolveQuarterRandomEvent(settleQuarterCore);
 }
 
