@@ -352,6 +352,38 @@ const analystQuarterDeck = {
       { label: "C. ‘短期确实有噪音’（股价 -7，压力 +16）", ok: false, effect: (st) => { st.stock -= 7; st.shareholderPressure = Math.min(100, st.shareholderPressure + 16); } },
     ],
   },
+  5: {
+    prompt: "分析师刻薄提问：你们的利润像火箭，现金像地铁晚点，解释一下？",
+    choices: [
+      { label: "A. ‘我们在前置布局未来’（股价 +4，风险 +6）", ok: true, effect: (st) => { st.stock += 4; st.risk += 6; } },
+      { label: "B. ‘请看我们自定义口径’（股价 +3，SEC +4）", ok: true, effect: (st) => { st.stock += 3; st.secAttention += 4; } },
+      { label: "C. ‘现金确实紧’（股价 -8，压力 +18）", ok: false, effect: (st) => { st.stock -= 8; st.shareholderPressure = Math.min(100, st.shareholderPressure + 18); } },
+    ],
+  },
+  6: {
+    prompt: "分析师刻薄提问：你们是能源公司，还是用脚注发电的公司？",
+    choices: [
+      { label: "A. ‘脚注是高级透明’（股价 +5，风险 +5）", ok: true, effect: (st) => { st.stock += 5; st.risk += 5; } },
+      { label: "B. ‘复杂是竞争优势’（股价 +2，SEC +5）", ok: true, effect: (st) => { st.stock += 2; st.secAttention += 5; } },
+      { label: "C. ‘你说得对我们有点飘’（股价 -9，压力 +20）", ok: false, effect: (st) => { st.stock -= 9; st.shareholderPressure = Math.min(100, st.shareholderPressure + 20); } },
+    ],
+  },
+  7: {
+    prompt: "分析师刻薄提问：你们的增长计划是商业计划书，还是悬疑小说？",
+    choices: [
+      { label: "A. ‘我们是叙事驱动企业’（股价 +4，风险 +6）", ok: true, effect: (st) => { st.stock += 4; st.risk += 6; } },
+      { label: "B. ‘市场会理解我们的前瞻性’（股价 +3，SEC +3）", ok: true, effect: (st) => { st.stock += 3; st.secAttention += 3; } },
+      { label: "C. ‘先活下来再解释’（股价 -7，压力 +16）", ok: false, effect: (st) => { st.stock -= 7; st.shareholderPressure = Math.min(100, st.shareholderPressure + 16); } },
+    ],
+  },
+  8: {
+    prompt: "分析师刻薄提问：请问你们现在最充足的是现金、信心，还是借口？",
+    choices: [
+      { label: "A. ‘最充足的是战略定力’（股价 +3，风险 +5）", ok: true, effect: (st) => { st.stock += 3; st.risk += 5; } },
+      { label: "B. ‘资金面完全可控’（股价 +2，SEC +4）", ok: true, effect: (st) => { st.stock += 2; st.secAttention += 4; } },
+      { label: "C. ‘借口可能最充足’（股价 -10，压力 +22）", ok: false, effect: (st) => { st.stock -= 10; st.shareholderPressure = Math.min(100, st.shareholderPressure + 22); } },
+    ],
+  },
 };
 
 
@@ -702,6 +734,7 @@ function updateUnlockFlags() {
     track("unlock_triggered", { unlock_type: "mtm", shareholder_pressure: Math.round(state.shareholderPressure) });
     showUnlockModal("【恶魔的邀约：预支未来】", "把二十年后的饼拿到今天吃掉。至于明天？明天会有更大的饼。");
     feed("股东压力冲破 70%：你被叫进密室，‘恶魔的邀约’正式开启。", "warn");
+    if (!state.actionDone) setActiveScene("warroom");
     checkTemptationTriggers();
   }
   if (getGameStage() >= 3 && state.risk > 40 && !state.isAuditUnlocked) {
@@ -796,6 +829,9 @@ function renderQuarterStatus() {
     lobbyBtn.style.display = (stage >= 3 && state.isLobbyUnlocked) ? "" : "none";
   }
   updateUnlockFlags();
+  if (!state.actionDone && state.isMTMUnlocked && stage >= 2) {
+    setActiveScene("warroom");
+  }
   setActiveScene(state.activeScene);
 }
 
@@ -1231,9 +1267,9 @@ function runLobbying(tier) {
   if (!spendAction("处理游说")) return;
   const before = snapshotCore();
   const cfg = {
-    light: { cash: 80, riskPct: 0.08, secCut: 2, mediaCut: 7, text: "轻度游说" },
-    mid: { cash: 150, riskPct: 0.15, secCut: 5, mediaCut: 4, text: "中度游说" },
-    heavy: { cash: 260, riskPct: 0.24, secCut: 999, mediaCut: 5, text: "重度游说" },
+    light: { cash: 35, riskPct: 0.14, secCut: 4, mediaCut: 9, text: "轻度游说" },
+    mid: { cash: 75, riskPct: 0.22, secCut: 8, mediaCut: 6, text: "中度游说" },
+    heavy: { cash: 120, riskPct: 0.32, secCut: 999, mediaCut: 8, text: "重度游说" },
   }[tier];
   if (!cfg) return;
   if (tier === "heavy" && state.heavyLobbyUsed) {
@@ -1276,9 +1312,9 @@ function openLobbyingModal() {
   const root = document.getElementById("lobbyingChoices");
   root.innerHTML = "";
   const options = [
-    { tier: "light", label: "轻度游说（现金 -$80M / 媒体热度显著下降）" },
-    { tier: "mid", label: "中度游说（现金 -$150M / 本季风险增速对冲）" },
-    { tier: "heavy", label: `重度游说（现金 -$260M / 冻结 SEC 进度，本局限一次）${state.heavyLobbyUsed ? "【已用】" : ""}` },
+    { tier: "light", label: "轻度游说（现金 -$35M / 风险明显回落）" },
+    { tier: "mid", label: "中度游说（现金 -$75M / 风险与SEC双降）" },
+    { tier: "heavy", label: `重度游说（现金 -$120M / 冻结 SEC 进度，本局限一次）${state.heavyLobbyUsed ? "【已用】" : ""}` },
   ];
   options.forEach((o) => {
     const btn = document.createElement("button");
