@@ -734,8 +734,8 @@ function renderQuarterStatus() {
 }
 
 
-function tickOfficeClock(step = 1) {
-  state.monthInQuarter = Math.min(3, state.monthInQuarter + step);
+function syncOfficeClock() {
+  state.monthInQuarter = Math.max(1, Math.min(3, state.maxAp - state.ap + 1));
   const clock = document.getElementById("officeClock");
   if (!clock) return;
   clock.textContent = `季度内时间：第 ${state.monthInQuarter} 月`;
@@ -747,7 +747,7 @@ function spendAP(cost = 1, reason = "行动") {
     return false;
   }
   state.ap -= cost;
-  tickOfficeClock(cost);
+  syncOfficeClock();
   return true;
 }
 
@@ -808,7 +808,7 @@ function renderActionPanel() {
     bind("stableBtn", () => {
       state.realCash *= 1.05;
       state.stock *= 1.02;
-      state.shareholderPressure = Math.min(100, state.shareholderPressure + 8);
+      state.shareholderPressure = Math.min(100, state.shareholderPressure + 5);
       state.lastActionSummary = "稳健增长";
       feed("稳健增长执行：现金+5%，股价+2%。", "good");
     });
@@ -1261,7 +1261,7 @@ function settleQuarterPostFinance() {
   document.getElementById("report").textContent = generateReportText();
 
   const growthRate = (state.stock - preStock) / Math.max(1, preStock) * 100;
-  state.shareholderPressure = Math.min(100, Math.max(0, state.shareholderPressure + (growthRate < 10 ? 12 : -10)));
+  state.shareholderPressure = Math.min(100, Math.max(0, state.shareholderPressure + (growthRate < 10 ? 6 : -8)));
   if (state.mtmRatio > 0) state.risk += (state.mtmRatio / 100) * 8;
   state.boardPatience = Math.max(0, 100 - state.shareholderPressure);
   state.stockDropStreak = state.stock < preStock ? state.stockDropStreak + 1 : 0;
@@ -1301,6 +1301,7 @@ function settleQuarterPostFinance() {
   state.riskGrowthFactor = 1;
   state.ap = state.maxAp;
   state.monthInQuarter = 1;
+  syncOfficeClock();
   state.forcedWarRoomThisQuarter = false;
   if (state.quarter >= 9) state.isAuditUnlocked = true;
   emitHook("beforeQuarterStart", { quarter: state.quarter });
@@ -1436,7 +1437,7 @@ function render() {
   shakeStockMetric();
   updateDangerEffects();
   syncBootModalVisibility();
-  tickOfficeClock(0);
+  syncOfficeClock();
   maybeShowQuarterQuote();
   saveGame();
 }
@@ -1455,7 +1456,9 @@ function loadGame() {
     state.triggeredEvents = new Set(data.triggeredEvents || []);
     state.maxAp = data.maxAp || 2;
     state.ap = typeof data.ap === "number" ? data.ap : state.maxAp;
+    state.ap = Math.max(0, Math.min(state.maxAp, state.ap));
     state.monthInQuarter = data.monthInQuarter || 1;
+    state.quarter = Math.max(1, Math.min(GAME_CONFIG.maxQuarter, Number(state.quarter) || 1));
     state.forcedWarRoomThisQuarter = !!data.forcedWarRoomThisQuarter;
     state.shareholderPressure = typeof data.shareholderPressure === "number" ? data.shareholderPressure : 50;
     state.isMTMUnlocked = !!data.isMTMUnlocked;
@@ -1497,7 +1500,7 @@ function doRoutineCheckin() {
   state.realCash *= 1.05;
   state.stock *= 1.02;
   state.paperGain += 5;
-  state.shareholderPressure = Math.min(100, state.shareholderPressure + 10);
+  state.shareholderPressure = Math.min(100, state.shareholderPressure + 4);
   state.consecutiveNormalOps += 1;
   state.lastActionSummary = "日常打卡";
   state.actionDone = true;
