@@ -21,6 +21,18 @@
   <section class="metrics" id="metrics"></section>
   <section class="motto" id="motto">沟通 · 诚信 · 尊重 · 卓越</section>
 
+  <section class="scene-nav panel" id="sceneNav">
+    <h2>办公场景</h2>
+    <div class="choices" id="sceneButtons">
+      <button class="scene-btn" data-scene="desk">CFO 办公室</button>
+      <button class="scene-btn" data-scene="warroom">管理层小黑会</button>
+      <button class="scene-btn" data-scene="stage">分析师大会</button>
+      <button class="scene-btn" data-scene="cellar">碎纸机房</button>
+    </div>
+    <p class="small" id="sceneHint"></p>
+  </section>
+
+
   <main class="layout">
     <section class="panel" id="phasePanel">
       <h2>季度战情</h2>
@@ -102,6 +114,16 @@
       <h2>流动性危机：现金为负</h2>
       <p id="cashCrisisDesc">公司账上现金已不足以维持运营，你必须选择一种非常规融资手段。</p>
       <div class="choices" id="cashCrisisChoices"></div>
+    </div>
+  </div>
+
+  
+
+  <div class="overlay hidden" id="lobbyingModal">
+    <div class="ending-card">
+      <h2>公关与游说</h2>
+      <p id="lobbyingDesc">选择本季度游说强度。</p>
+      <div class="choices" id="lobbyingChoices"></div>
     </div>
   </div>
 

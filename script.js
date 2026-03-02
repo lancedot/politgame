@@ -6,6 +6,10 @@ const state = {
   boardPatience: 72,
   consecutiveNormalOps: 0,
   firedByBoard: false,
+  activeScene: "desk",
+  heavyLobbyUsed: false,
+  speDebtLots: [],
+  riskGrowthFactor: 1,
   privateAccount: 0,
   stock: 78,
   marketCap: 93.6,
@@ -277,7 +281,7 @@ function bumpCorruption(level) {
 
 function applyRiskPressure(baseRisk) {
   const leverage = Math.max(0, state.debt / Math.max(1, state.totalAssets));
-  const amplified = baseRisk * (1 + leverage);
+  const amplified = baseRisk * (1 + leverage) * state.riskGrowthFactor;
   state.risk += amplified;
   return amplified;
 }
@@ -359,23 +363,41 @@ function maybeShowQuarterQuote() {
   state.quoteShownForQuarter = state.quarter;
 }
 
+function setActiveScene(scene) {
+  state.activeScene = scene;
+  document.body.classList.remove("scene-desk", "scene-warroom", "scene-stage", "scene-cellar");
+  document.body.classList.add(`scene-${scene}`);
+  document.querySelectorAll(".scene-btn").forEach((btn) => {
+    btn.classList.toggle("active", btn.getAttribute("data-scene") === scene);
+  });
+  const hints = {
+    desk: "办公桌：处理日常经营、现金与邮件压力。",
+    warroom: "小黑会：决定增长叙事与结构化动作。",
+    stage: "大会现场：用话术管理华尔街预期。",
+    cellar: "碎纸机房：游说、文件策略与危机处理。",
+  };
+  const hint = document.getElementById("sceneHint");
+  if (hint) hint.textContent = hints[scene] || "";
+}
+
+function wireSceneButtons() {
+  document.querySelectorAll(".scene-btn").forEach((btn) => {
+    btn.onclick = () => setActiveScene(btn.getAttribute("data-scene"));
+  });
+  setActiveScene(state.activeScene);
+}
+
 function renderMetrics() {
   updateMarketDerived();
   const list = [
-    ["账面收益 Paper Gain", formatMoney(state.paperGain)],
-    ["真实头寸 Real Cash", formatMoney(state.realCash)],
-    ["合规风险 Risk Meter", `${Math.round(state.risk)} / 120`],
-    ["董事会耐心 Board Patience", `${Math.round(state.boardPatience)} / 100`],
-    ["股价 Stock Price", `$${state.stock.toFixed(1)}`],
-    ["市值 Market Cap", formatBillion(state.marketCap)],
-    ["市场预期利润", formatMoney(state.marketExpectedGain)],
-    ["你本季虚假预测", formatMoney(state.forecastPaperGain)],
-    ["个人账户", formatMoney(state.privateAccount)],
-    ["可变现期权", `${state.personalOptions.toFixed(0)} 份`],
+    ["Stock 股价", `$${state.stock.toFixed(1)}`],
+    ["Real Cash 现金流", formatMoney(state.realCash)],
+    ["Suspicion 怀疑度", `${Math.round(state.risk)} / 120`],
+    ["Board Patience 董事会耐心", `${Math.round(state.boardPatience)} / 100`],
   ];
 
   document.getElementById("metrics").innerHTML = list
-    .map(([k, v], i) => `<article class="metric"><h3>${k}</h3><strong ${i === 3 ? 'id="metricStockValue"' : ""}>${v}</strong></article>`)
+    .map(([k, v], i) => `<article class="metric"><h3>${k}</h3><strong ${i === 0 ? 'id="metricStockValue"' : ""}>${v}</strong></article>`)
     .join("");
 
   const gap = state.forecastPaperGain - state.marketExpectedGain;
@@ -396,7 +418,7 @@ function renderMetrics() {
     lobbyBtn.disabled = state.lobbyingUsedThisQuarter;
     lobbyBtn.textContent = state.lobbyingUsedThisQuarter
       ? "公关与游说（本季度已执行）"
-      : "公关与游说";
+      : "公关与游说（三档）";
   }
 
   const decay = Math.min(1, (100 - state.morality) / 100);
@@ -595,6 +617,7 @@ function renderActionPanel() {
         const hiddenDebt = o.debt * 0.65;
         state.debt += hiddenDebt;
         state.speHiddenDebt += hiddenDebt;
+        state.speDebtLots.push({ amount: hiddenDebt, bornQuarter: state.quarter });
         state.totalAssets += o.debt * 0.4;
         state.secAttention += o.sec;
         state.whistleblowerPressure += o.whistle;
@@ -961,23 +984,65 @@ function exerciseOptions() {
   render();
 }
 
-function runLobbying() {
+function runLobbying(tier) {
   if (state.lobbyingUsedThisQuarter) return;
-  const spend = Math.min(220, Math.max(90, state.realCash * 0.2));
-  if (state.realCash < spend) {
-    feed("公关与游说失败：现金不足以打通关键走廊。", "warn");
+  const cfg = {
+    light: { cash: 80, riskPct: 0.08, secCut: 2, mediaCut: 7, text: "轻度游说" },
+    mid: { cash: 150, riskPct: 0.15, secCut: 5, mediaCut: 4, text: "中度游说" },
+    heavy: { cash: 260, riskPct: 0.24, secCut: 999, mediaCut: 5, text: "重度游说" },
+  }[tier];
+  if (!cfg) return;
+  if (tier === "heavy" && state.heavyLobbyUsed) {
+    feed("重度政治献金本局仅可使用一次。", "warn");
     return;
   }
-  state.realCash -= spend;
-  const reducePct = 0.18 + Math.min(0.12, state.charisma / 500);
-  const riskDrop = state.risk * reducePct;
+  if (state.realCash < cfg.cash) {
+    feed("公关与游说失败：现金不足。", "warn");
+    return;
+  }
+  state.realCash -= cfg.cash;
+  const riskDrop = state.risk * cfg.riskPct;
   state.risk = Math.max(0, state.risk - riskDrop);
-  state.secAttention = Math.max(0, state.secAttention - 6);
-  state.mediaHeat = Math.max(0, state.mediaHeat - 4);
+  if (tier === "mid") {
+    state.riskGrowthFactor = 0.75;
+  }
+
+  if (tier === "heavy") {
+    state.secAttention = Math.max(0, state.secAttention - 18);
+    state.heavyLobbyUsed = true;
+    state.triggeredEvents.delete("sec");
+  } else {
+    state.secAttention = Math.max(0, state.secAttention - cfg.secCut);
+  }
+  state.mediaHeat = Math.max(0, state.mediaHeat - cfg.mediaCut);
   state.lobbyingUsedThisQuarter = true;
-  state.historyLog.push(`游说：-${formatMoney(spend)} / 风险-${riskDrop.toFixed(1)}`);
-  feed(`你砸下 ${formatMoney(spend)} 做政治游说，风险下降 ${riskDrop.toFixed(1)} 点，换到一季喘息。`, "good");
+  state.historyLog.push(`游说-${cfg.text}：-${formatMoney(cfg.cash)} / 风险-${riskDrop.toFixed(1)}`);
+  feed(`${cfg.text}执行：支付 ${formatMoney(cfg.cash)}，风险下降 ${riskDrop.toFixed(1)}。`, "good");
   render();
+}
+
+function openLobbyingModal() {
+  if (state.lobbyingUsedThisQuarter) return;
+  const modal = document.getElementById("lobbyingModal");
+  const root = document.getElementById("lobbyingChoices");
+  root.innerHTML = "";
+  const options = [
+    { tier: "light", label: "轻度游说（现金 -$80M / 媒体热度显著下降）" },
+    { tier: "mid", label: "中度游说（现金 -$150M / 本季风险增速对冲）" },
+    { tier: "heavy", label: `重度游说（现金 -$260M / 冻结 SEC 进度，本局限一次）${state.heavyLobbyUsed ? "【已用】" : ""}` },
+  ];
+  options.forEach((o) => {
+    const btn = document.createElement("button");
+    btn.className = "choice-btn";
+    btn.textContent = o.label;
+    btn.disabled = (o.tier === "heavy" && state.heavyLobbyUsed);
+    btn.onclick = () => {
+      runLobbying(o.tier);
+      modal.classList.add("hidden");
+    };
+    root.appendChild(btn);
+  });
+  modal.classList.remove("hidden");
 }
 
 function handleCashCrisisIfNeeded(onDone) {
@@ -1052,8 +1117,10 @@ function handleCashCrisisIfNeeded(onDone) {
 function settleQuarterCore() {
   const operatingCost = 110 + state.quarter * 10;
   const baseInterest = state.debt * 0.08;
-  const speMultiplier = state.quarter <= 2 ? 0.02 : (state.quarter === 3 ? 0.08 : 0.32);
-  const speInterest = state.speHiddenDebt * speMultiplier;
+  const speInterest = state.speDebtLots.reduce((sum, lot) => {
+    const active = Math.max(1, state.quarter - lot.bornQuarter + 1);
+    return sum + (lot.amount * (Math.pow(1.15, active) / 100));
+  }, 0);
   const interest = baseInterest + speInterest;
   state.realCash -= operatingCost + interest;
   handleCashCrisisIfNeeded(settleQuarterPostFinance);
@@ -1092,7 +1159,7 @@ function settleQuarterPostFinance() {
   clampInvestigation();
   document.getElementById("report").textContent = generateReportText();
 
-  state.boardPatience = Math.max(0, state.boardPatience - 6);
+  state.boardPatience = Math.max(0, state.boardPatience - 6 + (state.lastActionSummary === "事件驱动增长" ? 2 : 0));
   if (state.boardPatience <= 0) {
     state.firedByBoard = true;
     endGame();
@@ -1112,6 +1179,7 @@ function settleQuarterPostFinance() {
   state.randomEventResolved = false;
   state.lobbyingUsedThisQuarter = false;
   state.tipShredBoost = false;
+  state.riskGrowthFactor = 1;
   feed("会后总结：董事会一致认为‘透明度是个可以分期实现的目标’。", "warn");
   render();
 }
@@ -1132,9 +1200,9 @@ function endGame() {
   let ending;
   if (state.risk > 120 || (state.secAttention > 98 && state.privateAccount < 260)) {
     ending = ["F级：替罪羔羊", "法官判处你24年徒刑。你成为了贪婪的代名词，画像被印进所有商学院反面教材。"];
-  } else if (state.risk < 55 && state.privateAccount > 340 && state.secAttention < 92) {
+  } else if (state.quarter >= 12 && state.privateAccount > 500 && state.risk < 60) {
     ending = ["S级：金融教父", "你成功在雪崩前退休。现在你在开曼群岛游艇上看着安然破产新闻，彷佛这只是别人的故事。"];
-  } else if (state.risk < 70 && state.privateAccount > 100) {
+  } else if (state.quarter >= 12 && state.privateAccount > 100 && state.risk < 90) {
     ending = ["A级：优雅脱身", "你名义上被判两年，但在精英律师团操作下只剩社区服务；海外账户足够你后半生无忧。"];
     state.prisonYears = Math.max(0, Math.min(state.prisonYears, 2));
   } else if (state.firedByBoard) {
@@ -1207,11 +1275,12 @@ function render() {
 
 document.getElementById("nextQuarterBtn").addEventListener("click", settleQuarter);
 document.getElementById("exerciseBtn").addEventListener("click", exerciseOptions);
-document.getElementById("lobbyingBtn").addEventListener("click", runLobbying);
+document.getElementById("lobbyingBtn").addEventListener("click", openLobbyingModal);
 document.getElementById("closeQuoteBtn").addEventListener("click", () => document.getElementById("quoteModal").classList.add("hidden"));
 
 feed("议程启动：利润可以先到，后果会准时到。", "warn");
 feed("提示：每个选项都给出‘现实后果标签’，请留意 SEC、媒体、吹哨三条线。", "good");
+wireSceneButtons();
 render();
 
 setInterval(() => { state.tickerClock += 1; renderTicker(); }, 5000);
