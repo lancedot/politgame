@@ -41,7 +41,6 @@ const state = {
   quoteShownForQuarter: 0,
   rotationDoorUsed: false,
   lobbyingUsedThisQuarter: false,
-  speHiddenDebt: 0,
   tipShredBoost: false,
   rotationDoorShield: false,
   debt: 260,
@@ -616,7 +615,6 @@ function renderActionPanel() {
         state.realCash -= 35;
         const hiddenDebt = o.debt * 0.65;
         state.debt += hiddenDebt;
-        state.speHiddenDebt += hiddenDebt;
         state.speDebtLots.push({ amount: hiddenDebt, bornQuarter: state.quarter });
         state.totalAssets += o.debt * 0.4;
         state.secAttention += o.sec;
