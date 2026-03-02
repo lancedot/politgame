@@ -12,8 +12,8 @@ const GAME_CONFIG = {
   boardQuarterDecay: 15,
   saveKey: "enron_save_v2",
   scenePermissions: {
-    desk: ["exerciseBtn", "lobbyingBtn", "routineBtn", "ledgerPanel", "investigationPanel"],
-    warroom: ["actionPanel", "auditPanel", "reportPanel"],
+    desk: ["exerciseBtn", "routineBtn", "nextQuarterBtn", "ledgerPanel", "investigationPanel"],
+    warroom: ["actionPanel", "auditPanel", "reportPanel", "investigationPanel"],
   },
 };
 
@@ -62,6 +62,18 @@ function showUnlockModal(title, desc) {
   descNode.textContent = desc;
   confirmBtn.onclick = () => modal.classList.add("hidden");
   modal.classList.remove("hidden");
+}
+
+function runChewcoBridge() {
+  const before = snapshotCore();
+  state.realCash += 160;
+  state.debt += 140;
+  state.risk += 10;
+  state.secAttention += 6;
+  state.whistleblowerPressure += 4;
+  state.lastActionSummary = "Chewco过桥";
+  feed("Chewco 把坏账塞进口袋：现金回来了，证据链也回来了。", "warn");
+  showDelta(before, "Chewco结果");
 }
 
 function getRotatingKey(map, q) {
@@ -323,7 +335,7 @@ const analystQuarterDeck = {
   1: {
     prompt: "分析师刻薄提问：你们的增长是卖天然气，还是卖想象力？",
     choices: [
-      { label: "A. ‘我们卖的是未来现金流’（股价 +5，风险 +4）", ok: true, effect: (st) => { st.stock += 5; st.risk += 4; } },
+      { label: "A. ‘我们是能源界的微软。’（股价 +5，风险 +4）", ok: true, effect: (st) => { st.stock += 5; st.risk += 4; } },
       { label: "B. ‘请看口径调整后同比’（股价 +3，SEC +3）", ok: true, effect: (st) => { st.stock += 3; st.secAttention += 3; } },
       { label: "C. ‘本季增长确实乏力’（股价 -8，压力 +18）", ok: false, effect: (st) => { st.stock -= 8; st.shareholderPressure = Math.min(100, st.shareholderPressure + 18); } },
     ],
@@ -749,7 +761,7 @@ function updateUnlockFlags() {
     showUnlockModal("Lobby 解锁", "只要支票足够厚，监管者的眼睛就可以暂时性失明。你现在可以启动游说。 ");
     feed("新功能解锁：Lobby 游说（风险>70）。", "warn");
   }
-  if (state.realCash < 0 && !state.isChewcoUnlocked) {
+  if ((state.realCash < 180 || state.quarter >= 4) && !state.isChewcoUnlocked) {
     state.isChewcoUnlocked = true;
     track("unlock_triggered", { unlock_type: "chewco", cash: Number(state.realCash.toFixed(2)) });
     showUnlockModal("Chewco 解锁", "这是一个‘特殊的口袋’，把那些难看的坏账丢进去，世界就清净了。 ");
@@ -784,7 +796,7 @@ function applyPhaseTabView(q) {
   });
   document.getElementById("phaseInfo").textContent = q.name;
   document.getElementById("phaseDesc").textContent = q.desc;
-  document.getElementById("operationHint").textContent = `阶段 ${getGameStage()}/3 · 本季度任务三选一：变现 / 日常 / 游说（互斥）· 状态：${state.actionDone ? "已执行" : "待执行"}。`;
+  document.getElementById("operationHint").textContent = `阶段 ${getGameStage()}/3 · 办公室负责发布季报；暗箱实验室包含 MTM / Chewco / 审计沟通 / Lobby，并保留调查进度。`;
 }
 
 function renderQuarterStatus() {
@@ -820,13 +832,9 @@ function renderQuarterStatus() {
   exerciseBtn.textContent = "[内幕变现]";
   const routineBtn = document.getElementById("routineBtn");
   if (routineBtn) {
-    routineBtn.disabled = state.actionDone;
-    routineBtn.style.display = state.actionDone ? "none" : "";
+    routineBtn.disabled = false;
+    routineBtn.style.display = "";
     routineBtn.textContent = "[平庸的日常 (Honest Grinding)]";
-  }
-  const lobbyBtn = document.getElementById("lobbyingBtn");
-  if (lobbyBtn) {
-    lobbyBtn.style.display = (stage >= 3 && state.isLobbyUnlocked) ? "" : "none";
   }
   updateUnlockFlags();
   if (!state.actionDone && state.isMTMUnlocked && stage >= 2) {
@@ -926,14 +934,16 @@ function renderActionPanel() {
     return;
   }
 
-  // Stage 2/3: keep original quarter cards but emphasize MTM
+  // Stage 2/3: warroom branches
   root.innerHTML = `
     <p>War Room：CFO，我们需要一点‘会计魔法’。</p>
     <label for="mtmRatio">MTM 比例：0%（诚实） ↔ 100%（疯狂）</label>
     <input type="range" id="mtmRatio" min="0" max="100" step="5" value="${state.mtmRatio}" />
     <p id="mtmPreview" class="small"></p>
-    <p class="small">MTM 就是把未来 20 年的饼先画在今天的盘子里。只要我们不停止画饼，就没人发现我们在挨饿。</p>
+    <p class="small">恶魔的邀约（效果说明）：把未来利润提前确认到当季。比例越高，报表越漂亮；但风险、SEC关注与后续反噬也越高。短期让董事会安静，长期让法务失眠。</p>
     <button id="mtmApplyBtn" class="choice-btn" style="background:#7e1e1e;border-color:#d65a5a">[签署 MTM 方案]</button>
+    <button id="chewcoBtn" class="choice-btn" ${state.isChewcoUnlocked ? "" : "disabled"}>[Chewco 过桥融资]</button>
+    <button id="warLobbyBtn" class="choice-btn" ${state.isLobbyUnlocked ? "" : "disabled"}>[Lobby 政策润滑]</button>
   `;
   const slider = document.getElementById("mtmRatio");
   const btn = document.getElementById("mtmApplyBtn");
@@ -946,6 +956,10 @@ function renderActionPanel() {
   };
   slider.oninput = renderPreview;
   renderPreview();
+  const chewcoBtn = document.getElementById("chewcoBtn");
+  const warLobbyBtn = document.getElementById("warLobbyBtn");
+  if (chewcoBtn) chewcoBtn.onclick = () => { runChewcoBridge(); render(); };
+  if (warLobbyBtn) warLobbyBtn.onclick = () => openLobbyingModal();
   btn.onclick = () => {
     if (!spendAction("MTM 决策")) return;
     const before = snapshotCore();
@@ -1217,7 +1231,6 @@ function exerciseOptions() {
     feed("本季度期权策略已执行，华尔街也不会给你第二次后悔药。", "warn");
     return;
   }
-  if (!spendAction("内幕变现")) return;
   const modal = document.getElementById("optionsModal");
   const root = document.getElementById("optionsChoices");
   if (!modal || !root) return;
@@ -1264,7 +1277,6 @@ function exerciseOptions() {
 
 function runLobbying(tier) {
   if (state.lobbyingUsedThisQuarter) return;
-  if (!spendAction("处理游说")) return;
   const before = snapshotCore();
   const cfg = {
     light: { cash: 35, riskPct: 0.14, secCut: 4, mediaCut: 9, text: "轻度游说" },
@@ -1420,6 +1432,7 @@ function settleQuarterPostFinance() {
     return;
   }
   const preStock = state.stock;
+  state.secAttention += Math.min(8, 1.5 + state.risk * 0.035);
   if (state.paperGain < state.marketExpectedGain) {
     const gap = state.marketExpectedGain - state.paperGain;
     const drop = Math.max(3, Math.min(10, gap / 32));
@@ -1514,7 +1527,7 @@ function checkTemptationTriggers() {
   setActiveScene("warroom");
   const modal = document.getElementById("mtmPopup");
   const desc = document.getElementById("mtmPopupDesc");
-  desc.textContent = "把二十年后的饼拿到今天吃掉。至于明天？明天会有更大的饼。";
+  desc.textContent = "把二十年后的饼拿到今天吃掉。签署后立刻获得：账面利润 +260M、股价 +14、董事会耐心回满；代价是风险显著上升（约 +18）并在后续季度持续反噬。";
   document.getElementById("mtmSignBtn").onclick = () => {
     state.paperGain += 260;
     state.stock += 14;
@@ -1701,8 +1714,6 @@ window.gameApi = {
 
 
 function doRoutineCheckin() {
-  if (state.actionDone) return;
-  if (!spendAction("平庸的日常")) return;
   state.realCash *= 1.05;
   state.stock *= 1.02;
   state.paperGain += 5;
@@ -1718,7 +1729,6 @@ function doRoutineCheckin() {
 
 document.getElementById("nextQuarterBtn").addEventListener("click", settleQuarter);
 document.getElementById("exerciseBtn").addEventListener("click", exerciseOptions);
-document.getElementById("lobbyingBtn").addEventListener("click", openLobbyingModal);
 document.getElementById("routineBtn").addEventListener("click", doRoutineCheckin);
 document.getElementById("closeQuoteBtn").addEventListener("click", () => document.getElementById("quoteModal").classList.add("hidden"));
 
