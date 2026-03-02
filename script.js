@@ -178,27 +178,27 @@ const quarterQuotes = {
 
 const quarterRandomEvents = Object.assign({
   1: {
-    title: "季度突发：做空者质疑",
-    desc: "做空机构钱诺斯在 CNBC 上公开质疑我们的现金流不匹配，盘中股价先跌 10%。",
+    title: "季度突发：董事会冷笑审阅",
+    desc: "董事会盯着增长曲线问：‘这条线这么平，是你画图手抖了吗？’",
     choices: [
-      { label: "【公开羞辱他】（股价 +5%，风险 +15）", effect: (st) => { st.stock *= 1.05; st.risk += 15; st.mediaHeat += 8; st.charisma += 2; const msg = "你把电话会开成了擂台赛，短线情绪回暖，但监管留档更完整了。"; feed(msg, "warn"); return msg; } },
-      { label: "【发布虚假利好压制】（现金 -$50M，风险 +5）", effect: (st) => { st.realCash -= 50; st.risk += 5; st.stock += 3; st.secAttention += 3; const msg = "你用利好公告盖住质疑，市场先信了，审计先记下了。"; feed(msg, "good"); return msg; } },
+      { label: "A. 夸下海口（股东压力 -12，风险 +4）", effect: (st) => { st.shareholderPressure = Math.max(0, st.shareholderPressure - 12); st.risk += 4; const msg = "你把 PPT 说成了史诗，董事会先鼓掌，合规先记仇。"; feed(msg, "warn"); return msg; } },
+      { label: "B. 保守解释（股东压力 +10，风险 -2）", effect: (st) => { st.shareholderPressure = Math.min(100, st.shareholderPressure + 10); st.risk = Math.max(0, st.risk - 2); const msg = "你说了人话，董事会觉得你不会讲故事。"; feed(msg, "good"); return msg; } },
     ],
   },
   2: {
-    title: "季度突发：评级机构来电",
-    desc: "评级机构要求你解释 SPE 担保链的真实敞口。",
+    title: "季度突发：管理层增长军令状",
+    desc: "COO 提议签下激进 KPI：‘增长不够，就让现实配合报表。’",
     choices: [
-      { label: "A. 递交部分底稿，换取喘息（结果：股价 -2，SEC -3，风险 -2）", effect: (st) => { st.stock -= 2; st.secAttention = Math.max(0, st.secAttention - 3); st.risk = Math.max(0, st.risk - 2); const msg = "你勉强透明一次，市场嫌难看，但监管火气暂时下降。"; feed(msg, "good"); return msg; } },
-      { label: "B. 用‘结构优化’术语继续拖延（结果：股价 +2，SEC +5，风险 +4）", effect: (st) => { st.stock += 2; st.secAttention += 5; st.risk += 4; const msg = "你又赢下一场电话会，也又输掉一截未来。"; feed(msg, "warn"); return msg; } },
+      { label: "A. 签字冲刺（账面利润 +$80M，股东压力 -10，风险 +8）", effect: (st) => { st.paperGain += 80; st.shareholderPressure = Math.max(0, st.shareholderPressure - 10); st.risk += 8; const msg = "你签了军令状，增长看起来更像神迹。"; feed(msg, "warn"); return msg; } },
+      { label: "B. 拒绝拔苗（现金 +$20M，股东压力 +12）", effect: (st) => { st.realCash += 20; st.shareholderPressure = Math.min(100, st.shareholderPressure + 12); const msg = "你保住了睡眠质量，没保住董事会好脸色。"; feed(msg, "good"); return msg; } },
     ],
   },
   3: {
-    title: "季度突发：加州电网套利",
-    desc: "西海岸电力需求激增。你可以通过人为制造局部停电，套取 10 倍电价差。",
+    title: "季度突发：董事会二次盘问",
+    desc: "有人敲着桌子：‘隔壁增长 30%，你这里只有借口？’",
     choices: [
-      { label: "A. 执行‘死星’计划（结果：账面利润 +$500M，现金 +$180M，风险 +30，SEC +10）", effect: (st) => { st.paperGain += 500; st.forecastPaperGain += 120; st.realCash += 180; st.risk += 30; st.secAttention += 10; st.mediaHeat += 12; st.whistleblowerPressure += 8; const msg = "交易台欢呼‘死星’计划大获全胜，州政府与检察官同步上线。"; feed(msg, "bad"); return msg; } },
-      { label: "B. 维持供电并签长期对冲（结果：账面利润 +$140M，现金 +$60M，风险 +8，SEC +2）", effect: (st) => { st.paperGain += 140; st.realCash += 60; st.risk += 8; st.secAttention += 2; st.mediaHeat += 2; const msg = "你选择克制套利，利润没那么炸裂，但舆情与监管都相对可控。"; feed(msg, "good"); return msg; } },
+      { label: "A. 继续画饼（股价 +4，股东压力 -14，风险 +9）", effect: (st) => { st.stock += 4; st.shareholderPressure = Math.max(0, st.shareholderPressure - 14); st.risk += 9; const msg = "你把未来讲成今晚到账，掌声和风险一起上涨。"; feed(msg, "warn"); return msg; } },
+      { label: "B. 承认困难（股价 -5，股东压力 +15，风险 -3）", effect: (st) => { st.stock -= 5; st.shareholderPressure = Math.min(100, st.shareholderPressure + 15); st.risk = Math.max(0, st.risk - 3); const msg = "你诚实得像个异端，股价先给你上一课。"; feed(msg, "bad"); return msg; } },
     ],
   },
   4: {
@@ -277,6 +277,42 @@ const analystQuestionBank = {
     "若新合同签约放缓，你的增长承诺如何兑现？",
     "如果模型回调 10%，本季利润会不会瞬间蒸发？",
   ],
+};
+
+
+const analystQuarterDeck = {
+  1: {
+    prompt: "分析师刻薄提问：你们的增长是卖天然气，还是卖想象力？",
+    choices: [
+      { label: "A. ‘我们卖的是未来现金流’（股价 +5，风险 +4）", ok: true, effect: (st) => { st.stock += 5; st.risk += 4; } },
+      { label: "B. ‘请看口径调整后同比’（股价 +3，SEC +3）", ok: true, effect: (st) => { st.stock += 3; st.secAttention += 3; } },
+      { label: "C. ‘本季增长确实乏力’（股价 -8，压力 +18）", ok: false, effect: (st) => { st.stock -= 8; st.shareholderPressure = Math.min(100, st.shareholderPressure + 18); } },
+    ],
+  },
+  2: {
+    prompt: "分析师刻薄提问：利润这么好看，为什么现金流看起来像病历单？",
+    choices: [
+      { label: "A. ‘现金流是战略性滞后’（股价 +4，风险 +5）", ok: true, effect: (st) => { st.stock += 4; st.risk += 5; } },
+      { label: "B. ‘我们正优化资本结构’（股价 +2，SEC +4）", ok: true, effect: (st) => { st.stock += 2; st.secAttention += 4; } },
+      { label: "C. ‘你问得对，我们也很紧张’（股价 -9，压力 +22）", ok: false, effect: (st) => { st.stock -= 9; st.shareholderPressure = Math.min(100, st.shareholderPressure + 22); } },
+    ],
+  },
+  3: {
+    prompt: "分析师刻薄提问：除了幻灯片动画，你们到底有什么护城河？",
+    choices: [
+      { label: "A. ‘护城河是我们的估值共识’（股价 +6，风险 +6）", ok: true, effect: (st) => { st.stock += 6; st.risk += 6; } },
+      { label: "B. ‘我们领先行业三年’（股价 +3，SEC +2）", ok: true, effect: (st) => { st.stock += 3; st.secAttention += 2; } },
+      { label: "C. ‘护城河还在施工中’（股价 -10，压力 +20）", ok: false, effect: (st) => { st.stock -= 10; st.shareholderPressure = Math.min(100, st.shareholderPressure + 20); } },
+    ],
+  },
+  4: {
+    prompt: "分析师刻薄提问：你们是能源公司，还是会计文学社？",
+    choices: [
+      { label: "A. ‘我们是新经济基础设施’（股价 +5，风险 +5）", ok: true, effect: (st) => { st.stock += 5; st.risk += 5; } },
+      { label: "B. ‘请聚焦长期价值创造’（股价 +2，SEC +3）", ok: true, effect: (st) => { st.stock += 2; st.secAttention += 3; } },
+      { label: "C. ‘短期确实有噪音’（股价 -7，压力 +16）", ok: false, effect: (st) => { st.stock -= 7; st.shareholderPressure = Math.min(100, st.shareholderPressure + 16); } },
+    ],
+  },
 };
 
 
@@ -481,6 +517,24 @@ function animateNumber(el, from, to, formatter) {
     if (p < 1) requestAnimationFrame(run);
   };
   requestAnimationFrame(run);
+}
+
+
+function snapshotCore() {
+  return {
+    cash: state.realCash,
+    stock: state.stock,
+    risk: state.risk,
+    pressure: state.shareholderPressure,
+  };
+}
+
+function showDelta(before, title = "行动结果") {
+  const dc = state.realCash - before.cash;
+  const ds = state.stock - before.stock;
+  const dr = state.risk - before.risk;
+  const dp = state.shareholderPressure - before.pressure;
+  feed(`${title}：现金 ${formatMoney(dc)}｜股价 ${ds >= 0 ? '+' : ''}${ds.toFixed(1)}｜风险 ${dr >= 0 ? '+' : ''}${dr.toFixed(1)}｜股东压力 ${dp >= 0 ? '+' : ''}${dp.toFixed(1)}`, dr > 0 || dp > 0 ? "warn" : "good");
 }
 
 function renderMetrics() {
@@ -784,13 +838,16 @@ function renderActionPanel() {
       };
     };
     bind("stableBtn", () => {
+      const before = snapshotCore();
       state.realCash *= 1.05;
       state.stock *= 1.02;
       state.shareholderPressure = Math.min(100, state.shareholderPressure + 5);
       state.lastActionSummary = "稳健增长";
       feed("稳健增长执行：现金+5%，股价+2%。", "good");
+      showDelta(before, "稳健增长结算");
     });
     bind("aggressiveBtn", () => {
+      const before = snapshotCore();
       state.realCash *= 1.15;
       state.stock *= 1.10;
       if (Math.random() < 0.3) {
@@ -800,6 +857,7 @@ function renderActionPanel() {
       state.shareholderPressure = Math.max(0, state.shareholderPressure - 6);
       state.lastActionSummary = "激进扩张";
       feed("在法律的边缘疯狂试探，通常能带回更多的黄金。", "warn");
+      showDelta(before, "激进扩张结算");
     });
     return;
   }
@@ -817,6 +875,7 @@ function renderActionPanel() {
   if (!slider || !btn) return;
   btn.onclick = () => {
     if (!spendAction("MTM 决策")) return;
+    const before = snapshotCore();
     state.mtmRatio = Number(slider.value);
     state.isMTMUnlocked = true;
     const lift = state.mtmRatio / 100;
@@ -828,6 +887,7 @@ function renderActionPanel() {
     state.lastActionSummary = `MTM-${state.mtmRatio}%`;
     state.actionDone = true;
     feed(`MTM 已签署：比例 ${state.mtmRatio}%，报表更漂亮，绞索更紧。`, "warn");
+    showDelta(before, "MTM 执行结果");
     render();
   };
 }
@@ -922,37 +982,72 @@ function renderCallChoices() {
   if (!root) return;
   root.innerHTML = "";
   const prompt = document.getElementById("callPrompt");
-  if (prompt) {
-    prompt.textContent = "分析师刻薄提问：CFO 先生，除了这些精美的幻灯片，你们真的有在卖天然气吗？";
+  const deck = analystQuarterDeck[getRotatingKey(analystQuarterDeck, state.quarter)] || analystQuarterDeck[1];
+  if (prompt) prompt.textContent = deck.prompt;
+  deck.choices.forEach((opt) => {
+    const btn = document.createElement("button");
+    btn.className = "choice-btn";
+    btn.textContent = opt.label;
+    btn.disabled = state.callDone || !state.isSettlingQuarter;
+    btn.onclick = () => {
+      if (state.callDone) return;
+      const before = snapshotCore();
+      state.callDone = true;
+      opt.effect(state);
+      if (opt.ok) {
+        state.shareholderPressure = Math.max(0, state.shareholderPressure - 12);
+        feed("分析师会后点评：‘故事讲得漂亮，风险也写得漂亮。’", "warn");
+      } else {
+        state.firedByBoard = state.shareholderPressure >= 95;
+        feed("分析师会后点评：‘终于有人说了真话，市场先给了你耳光。’", "bad");
+      }
+      state.lastCallSummary = opt.label;
+      showDelta(before, "分析师问询结果");
+      render();
+    };
+    root.appendChild(btn);
+  });
+}
+
+function openMandatoryCallModal(onDone) {
+  if (state.callDone) {
+    onDone();
+    return;
   }
-  const opts = [
-    { label: "狂妄回应：我们是能源界的微软。", ok: true },
-    { label: "黑话回应：我们正在重塑价值曲线。", ok: true },
-    { label: "诚实回应：增长确实放缓。", ok: false },
-  ];
-  opts.forEach((opt) => {
+  const modal = document.getElementById("callMandatoryModal");
+  const prompt = document.getElementById("callMandatoryPrompt");
+  const root = document.getElementById("callMandatoryChoices");
+  if (!modal || !prompt || !root) {
+    onDone();
+    return;
+  }
+  const deck = analystQuarterDeck[getRotatingKey(analystQuarterDeck, state.quarter)] || analystQuarterDeck[1];
+  prompt.textContent = deck.prompt;
+  root.innerHTML = "";
+  deck.choices.forEach((opt) => {
     const btn = document.createElement("button");
     btn.className = "choice-btn";
     btn.textContent = opt.label;
     btn.onclick = () => {
       if (state.callDone) return;
+      const before = snapshotCore();
       state.callDone = true;
+      opt.effect(state);
       if (opt.ok) {
-        state.stock *= 1.06;
-        state.secAttention += 5;
-        state.shareholderPressure = Math.max(0, state.shareholderPressure - 30);
-        feed("分析师评价：天才！安然是能源界的微软！", "warn");
+        state.shareholderPressure = Math.max(0, state.shareholderPressure - 12);
+        feed("你完成了华尔街布道：掌声和问询函一起到货。", "warn");
       } else {
-        state.stock *= 0.78;
-        state.shareholderPressure = 100;
-        state.firedByBoard = true;
-        feed("分析师评价：失望。安然正在变成一家无聊的传统公司。", "bad");
+        feed("你在华尔街直播了诚实，股价直播了下跌。", "bad");
       }
-      state.lastCallSummary = opt.ok ? "狂妄回应" : "诚实回应";
+      state.lastCallSummary = opt.label;
+      showDelta(before, "华尔街布道结果");
+      modal.classList.add("hidden");
       render();
+      onDone();
     };
     root.appendChild(btn);
   });
+  modal.classList.remove("hidden");
 }
 
 function renderTicker() {
@@ -982,6 +1077,13 @@ function resolveQuarterRandomEvent(onDone) {
     return;
   }
   const eventKey = getRotatingKey(quarterRandomEvents, state.quarter);
+  const stageBucket = state.quarter <= 3 ? "early" : state.quarter <= 8 ? "mid" : "late";
+  const eventGuardKey = `evt-${stageBucket}-q${state.quarter}`;
+  if (state.triggeredEvents.has(eventGuardKey)) {
+    state.randomEventResolved = true;
+    onDone();
+    return;
+  }
   const event = quarterRandomEvents[eventKey];
   const modal = document.getElementById("randomEvent");
   const titleNode = document.getElementById("eventTitle");
@@ -996,6 +1098,7 @@ function resolveQuarterRandomEvent(onDone) {
     btn.className = "choice-btn";
     btn.textContent = c.label;
     btn.onclick = () => {
+      const before = snapshotCore();
       let feedback = "决策已执行，季度将继续推进。";
       try {
         feedback = c.effect.length >= 2 ? c.effect(state, feed) : c.effect(state);
@@ -1016,6 +1119,8 @@ function resolveQuarterRandomEvent(onDone) {
         choice_label: c.label,
       });
       state.randomEventResolved = true;
+      state.triggeredEvents.add(eventGuardKey);
+      showDelta(before, "季度突发结果");
 
       descNode.textContent = `选择结果：${feedback || "已执行。"}`;
       root.innerHTML = "";
@@ -1035,35 +1140,57 @@ function resolveQuarterRandomEvent(onDone) {
 }
 
 function exerciseOptions() {
-  if (state.exercisedThisQuarter || state.personalOptions <= 0) return;
-  if (!spendAction("内幕变现")) return;
-  const units = Math.min(12, state.personalOptions);
-  const grossProceeds = units * state.stock * 0.02;
-  const liquidityCap = Math.max(6, state.realCash * 0.18);
-  const proceeds = Math.min(grossProceeds, liquidityCap);
-  state.personalOptions -= units;
-  state.privateAccount += proceeds;
-  state.realCash -= proceeds * 0.3;
-  state.stock -= Math.max(0.4, units * 0.02);
-  applyRiskPressure(3);
-  const crashChance = Math.min(0.55, 0.08 + units * 0.009 + state.risk / 260);
-  if (Math.random() < crashChance) {
-    const crashDrop = 6 + Math.random() * 8;
-    state.stock -= crashDrop;
-    state.secAttention += 5;
-    state.mediaHeat += 6;
-    feed(`大宗减持被识别，做空盘狙击触发，股价瞬跌 ${crashDrop.toFixed(1)} 点。`, "bad");
+  if (state.exercisedThisQuarter || state.personalOptions <= 0) {
+    feed("本季度期权策略已执行，华尔街也不会给你第二次后悔药。", "warn");
+    return;
   }
-  state.mediaHeat += 2;
-  state.exercisedThisQuarter = true;
-  state.historyLog.push(`期权变现：${units}份(${formatMoney(proceeds)})`);
-  feed(`你按 $${state.stock.toFixed(1)} 执行 ${units} 份期权，到账 ${formatMoney(proceeds)}（受流动性上限约束）。`, "warn");
-  render();
+  const modal = document.getElementById("optionsModal");
+  const root = document.getElementById("optionsChoices");
+  if (!modal || !root) return;
+  root.innerHTML = "";
+  const options = [
+    { key: "none", label: "A. 不变现（风险 +0，到账 $0）", ratio: 0 },
+    { key: "small", label: "B. 小额变现（约 4 份，风险 +2）", ratio: 0.33 },
+    { key: "full", label: "C. 大额变现（约 12 份，风险 +5）", ratio: 1 },
+  ];
+  options.forEach((o) => {
+    const btn = document.createElement("button");
+    btn.className = "choice-btn";
+    btn.textContent = o.label;
+    btn.onclick = () => {
+      if (o.ratio <= 0) {
+        state.exercisedThisQuarter = true;
+        state.historyLog.push("期权策略：本季不变现");
+        feed("你决定暂不变现：道德感保住了，现金流没有。", "good");
+        modal.classList.add("hidden");
+        render();
+        return;
+      }
+      const units = Math.max(1, Math.floor(Math.min(12, state.personalOptions) * o.ratio));
+      const grossProceeds = units * state.stock * 0.02;
+      const liquidityCap = Math.max(6, state.realCash * 0.18);
+      const proceeds = Math.min(grossProceeds, liquidityCap);
+      state.personalOptions -= units;
+      state.privateAccount += proceeds;
+      state.realCash -= proceeds * 0.3;
+      state.stock -= Math.max(0.3, units * 0.018);
+      state.risk += o.key === "full" ? 5 : 2;
+      state.mediaHeat += o.key === "full" ? 4 : 2;
+      state.exercisedThisQuarter = true;
+      state.historyLog.push(`期权变现：${units}份(${formatMoney(proceeds)})`);
+      feed(`期权策略执行：${units} 份，到账 ${formatMoney(proceeds)}，风险 +${o.key === "full" ? 5 : 2}。`, "warn");
+      modal.classList.add("hidden");
+      render();
+    };
+    root.appendChild(btn);
+  });
+  modal.classList.remove("hidden");
 }
 
 function runLobbying(tier) {
   if (state.lobbyingUsedThisQuarter) return;
   if (!spendAction("处理游说")) return;
+  const before = snapshotCore();
   const cfg = {
     light: { cash: 80, riskPct: 0.08, secCut: 2, mediaCut: 7, text: "轻度游说" },
     mid: { cash: 150, riskPct: 0.15, secCut: 5, mediaCut: 4, text: "中度游说" },
@@ -1096,6 +1223,7 @@ function runLobbying(tier) {
   state.lobbyingUsedThisQuarter = true;
   state.historyLog.push(`游说-${cfg.text}：-${formatMoney(cfg.cash)} / 风险-${riskDrop.toFixed(1)}`);
   feed(`${cfg.text}执行：支付 ${formatMoney(cfg.cash)}，风险下降 ${riskDrop.toFixed(1)}。`, "good");
+  showDelta(before, `${cfg.text}结果`);
   render();
 }
 
@@ -1337,7 +1465,7 @@ function progressQuarter() {
   state.isSettlingQuarter = true;
   track("publish_clicked", { action_done: state.actionDone });
   if (!state.actionDone) feed("你提前发布了季报：华尔街喜欢速度，不喜欢真相。", "warn");
-  resolveQuarterRandomEvent(settleQuarterCore);
+  resolveQuarterRandomEvent(() => openMandatoryCallModal(settleQuarterCore));
 }
 
 function settleQuarter() {
