@@ -91,6 +91,10 @@ const state = {
   audioCtx: null,
   metricPrev: {},
   bootCompleted: false,
+  maxAp: 2,
+  ap: 2,
+  monthInQuarter: 1,
+  forcedWarRoomThisQuarter: false,
 };
 
 const quarterConfig = {
@@ -483,7 +487,8 @@ function renderMetrics() {
     { key: "stock", label: content.statusLabels?.price || "华尔街估值 (Market Cap/Price)", value: state.stock, fmt: (v) => `$${v.toFixed(1)}` },
     { key: "cash", label: content.statusLabels?.cash || "金库头寸 (Actual Liquidity)", value: state.realCash, fmt: (v) => formatMoney(v) },
     { key: "paper", label: content.statusLabels?.paper || "叙事利润 (Narrative Earnings)", value: state.paperGain, fmt: (v) => formatMoney(v) },
-    { key: "risk", label: content.statusLabels?.risk || "SEC 绞索 (Regulatory Noose)", value: state.risk, fmt: (v) => `${Math.round(v)} / 120` },
+    { key: "risk", label: "SEC 绞索紧度 (Noose Tightness)", value: state.risk, fmt: (v) => `${Math.round(v)} / 120` },
+    { key: "offshore", label: "避税天堂余额 (Offshore Account)", value: state.privateAccount, fmt: (v) => formatMoney(v) },
     { key: "q", label: content.statusLabels?.quarter || "生存周期 (Fiscal Quarter)", value: state.quarter, fmt: (v) => `Q${Math.round(v)}` },
   ];
 
@@ -613,17 +618,17 @@ function renderQuarterStatus() {
   document.getElementById("phaseInfo").textContent = q.name;
   document.getElementById("phaseDesc").textContent = q.desc;
   document.getElementById("actionIntro").textContent = q.intro;
-  document.getElementById("operationHint").textContent = state.actionDone && state.auditDone && state.callDone
-    ? "流程完成：可发布财报。若要变现，现在就是最‘合理合规’的时间窗口。"
-    : "请完成【核心任务】→【审计沟通】→【分析师会议】三步。";
+  document.getElementById("operationHint").textContent = `回合制：本季度剩余行动点 AP ${state.ap}/${state.maxAp}。AP 用尽或主动发布季报后进入结算。`;
 
-  const canSettle = state.actionDone && state.auditDone && state.callDone;
   const nextBtn = document.getElementById("nextQuarterBtn");
   nextBtn.disabled = false;
   nextBtn.style.display = "";
-  nextBtn.title = canSettle ? "已完成当季流程，可发布季度财报" : "请先完成当季度所有工作";
-  if (!state.actionDone) setActiveScene("desk"); else if (!state.auditDone) setActiveScene("warroom"); else if (!state.callDone) setActiveScene("stage");
-  document.getElementById("nextQuarterBtn").textContent = content.buttons?.nextQuarter || "[发布季度财报]";
+  nextBtn.title = state.ap > 0 ? "可提前发布，或继续行动直至 AP=0" : "AP 已用尽，建议立刻发布";
+  if (state.boardPatience < 30 && !state.forcedWarRoomThisQuarter) {
+    state.forcedWarRoomThisQuarter = true;
+    checkTemptationTriggers();
+  }
+  document.getElementById("nextQuarterBtn").textContent = "[向华尔街撒谎 (Publish Earnings)]";
   const exerciseBtn = document.getElementById("exerciseBtn");
   const canExercise = !(state.exercisedThisQuarter || state.personalOptions <= 0);
   exerciseBtn.disabled = !canExercise;
@@ -631,9 +636,28 @@ function renderQuarterStatus() {
   exerciseBtn.textContent = content.buttons?.exercise || "[紧急处置个人期权]";
   const routineBtn = document.getElementById("routineBtn");
   if (routineBtn) {
-    routineBtn.disabled = state.actionDone;
-    routineBtn.style.display = state.actionDone ? "none" : "";
+    routineBtn.disabled = state.ap <= 0;
+    routineBtn.style.display = state.ap <= 0 ? "none" : "";
+    routineBtn.textContent = "[平庸的日常 (Honest Grinding)]";
   }
+}
+
+
+function tickOfficeClock(step = 1) {
+  state.monthInQuarter = Math.min(3, state.monthInQuarter + step);
+  const clock = document.getElementById("officeClock");
+  if (!clock) return;
+  clock.textContent = `季度内时间：第 ${state.monthInQuarter} 月`;
+}
+
+function spendAP(cost = 1, reason = "行动") {
+  if (state.ap < cost) {
+    feed(`${reason}失败：本季度行动点(AP)不足。`, "warn");
+    return false;
+  }
+  state.ap -= cost;
+  tickOfficeClock(cost);
+  return true;
 }
 
 function renderTermButtons(keys = []) {
@@ -682,7 +706,7 @@ function renderActionPanel() {
         "现实后果：若≥85，后续分析师提问转为‘激进质询’",
       ])}
       ${renderTermButtons(["MTM"])}
-      <button id="actionBtn" ${state.actionDone ? "disabled" : ""}>[重估未来价值]</button>
+      <button id="actionBtn" ${state.actionDone ? "disabled" : ""} title="会计学上的‘点石成金’：将未来的虚构利润折现到今天的报表。后果？那是下任 CFO 的事。">[重估未来价值]</button>
     `;
 
     const slider = document.getElementById("optimism");
@@ -1097,6 +1121,7 @@ function resolveQuarterRandomEvent(onDone) {
 
 function exerciseOptions() {
   if (state.exercisedThisQuarter || state.personalOptions <= 0) return;
+  if (!spendAP(1, "内幕变现")) return;
   const units = Math.min(12, state.personalOptions);
   const grossProceeds = units * state.stock * 0.02;
   const liquidityCap = Math.max(6, state.realCash * 0.18);
@@ -1123,6 +1148,7 @@ function exerciseOptions() {
 
 function runLobbying(tier) {
   if (state.lobbyingUsedThisQuarter) return;
+  if (!spendAP(1, "处理游说")) return;
   const cfg = {
     light: { cash: 80, riskPct: 0.08, secCut: 2, mediaCut: 7, text: "轻度游说" },
     mid: { cash: 150, riskPct: 0.15, secCut: 5, mediaCut: 4, text: "中度游说" },
@@ -1333,6 +1359,9 @@ function settleQuarterPostFinance() {
   state.lobbyingUsedThisQuarter = false;
   state.tipShredBoost = false;
   state.riskGrowthFactor = 1;
+  state.ap = state.maxAp;
+  state.monthInQuarter = 1;
+  state.forcedWarRoomThisQuarter = false;
   emitHook("beforeQuarterStart", { quarter: state.quarter });
   feed("[季度财务快报] 华尔街为我们的‘成长’欢呼，尽管你的金库已经空得能听到回声。", "warn");
   render();
@@ -1346,11 +1375,11 @@ function checkTemptationTriggers() {
   const conditionB = state.stockDropStreak >= 2;
   const conditionC = state.realCash < nextSpeInterest;
   if (state.quarter < 3) return;
-  if (!(conditionA || conditionB || conditionC)) return;
+  if (!(conditionA || conditionB || conditionC || state.boardPatience < 30)) return;
   setActiveScene("warroom");
   const modal = document.getElementById("mtmPopup");
   const desc = document.getElementById("mtmPopupDesc");
-  desc.textContent = "CFO，董事会对上季度增长非常愤怒。必须启动 MTM：把20年后的钱先写进明天财报。签署可瞬间重置董事会不满，但会堆高未来风险。";
+  desc.textContent = "把二十年后的饼拿到今天吃掉。至于明天？明天会有更大的饼。";
   document.getElementById("mtmSignBtn").onclick = () => {
     state.paperGain += 260;
     state.stock += 14;
@@ -1372,10 +1401,7 @@ function checkTemptationTriggers() {
 }
 
 function settleQuarter() {
-  if (!(state.actionDone && state.auditDone && state.callDone)) {
-    feed("请先完成当季度所有工作（核心任务 / 审计沟通 / 分析师会议）再发布季报。", "warn");
-    return;
-  }
+  if (state.ap > 0) feed("你提前发布了季报：华尔街喜欢速度，不喜欢真相。", "warn");
   resolveQuarterRandomEvent(settleQuarterCore);
 }
 
@@ -1398,10 +1424,7 @@ function endGame() {
     ending = ["A级：体面的流亡者", "虽然背负骂名，但离岸账户的数字足以让你在欧洲过上贵族生活。"];
     state.prisonYears = Math.max(0, Math.min(state.prisonYears, 2));
   } else if (state.firedByBoard) {
-    ending = ["解雇通知书：由于平庸", `亲爱的 CFO：董事会一致认为，你那“诚实”的经营方式更适合去教小学数学，而不是管理一家价值千亿的帝国。你被解雇了。没有离职补偿，没有期权。请在保安陪同下带走你的仙人掌。
-
-结局判定：[等级 B - 被遗忘的庸才]
-“你太害怕坐牢，结果连华尔街的门票都弄丢了。”`];
+    ending = ["你被开除了", "HR 已经把你的私人物品扔进了垃圾桶。你太诚实了，这不适合华尔街。"];
     state.prisonYears = 0;
   } else {
     ending = ["C级：破产名流", "公司破产重组，你成了财经节目常驻嘉宾：名声很响，资产很薄。"];
@@ -1441,6 +1464,8 @@ function endGame() {
   debrief.innerHTML = `<h3>结局复盘</h3><ul>${lines.map((l) => `<li>${l}</li>`).join("")}</ul>`;
   score.textContent = `私人账户 ${formatMoney(state.privateAccount)} · 风险 ${Math.round(state.risk)} · 股价 $${state.stock.toFixed(1)} · SEC ${Math.round(state.secAttention)} · 入狱 ${state.prisonYears} 年`;
   overlay.classList.remove("hidden");
+  overlay.classList.remove("ending-success", "ending-fail");
+  overlay.classList.add(ending[0].startsWith("S级") ? "ending-success" : "ending-fail");
 }
 
 function ensureInteractivePanels() {
@@ -1466,6 +1491,7 @@ function render() {
   shakeStockMetric();
   updateDangerEffects();
   syncBootModalVisibility();
+  tickOfficeClock(0);
   maybeShowQuarterQuote();
   saveGame();
 }
@@ -1482,6 +1508,10 @@ function loadGame() {
     const data = JSON.parse(raw);
     Object.assign(state, data);
     state.triggeredEvents = new Set(data.triggeredEvents || []);
+    state.maxAp = data.maxAp || 2;
+    state.ap = typeof data.ap === "number" ? data.ap : state.maxAp;
+    state.monthInQuarter = data.monthInQuarter || 1;
+    state.forcedWarRoomThisQuarter = !!data.forcedWarRoomThisQuarter;
   } catch (_) {
     localStorage.removeItem(GAME_CONFIG.saveKey);
   }
@@ -1511,6 +1541,7 @@ window.gameApi = {
 
 function doRoutineCheckin() {
   if (state.actionDone) return;
+  if (!spendAP(1, "平庸的日常")) return;
   state.realCash += 18;
   state.paperGain += 5;
   state.boardPatience = Math.max(0, state.boardPatience - 15);

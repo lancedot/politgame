@@ -208,3 +208,10 @@ body.risk-shake .layout { animation: riskShake .24s linear infinite; }
 body.scene-desk #ledgerPanel{display:block;}
 body.scene-warroom #ledgerPanel, body.scene-stage #ledgerPanel{display:none;}
 #mtmPopup .ending-card{max-width:760px;}
+
+.office-clock{margin:0 16px 10px;color:#ffd27a;font-size:.82rem;text-align:right;}
+
+.overlay.ending-success .ending-card{background:#0a0b08;border-color:#c7a95a;color:#f7e8b4;}
+.overlay.ending-fail .ending-card{background:#060606;border-color:#8a6a34;color:#f1d9a0;}
+.overlay.ending-success #endingDesc::after{content:"\A✈ 开曼群岛机票已出票。";white-space:pre;color:#d7bf7a;}
+.overlay.ending-fail #endingDesc::after{content:"\A🧾 一张破碎的支票躺在地上。";white-space:pre;color:#b89452;}
