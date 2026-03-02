@@ -176,7 +176,7 @@ const quarterQuotes = {
   ],
 };
 
-const quarterRandomEvents = Object.assign({
+const quarterRandomEvents = Object.assign({}, content.events || {}, {
   1: {
     title: "季度突发：董事会冷笑审阅",
     desc: "董事会盯着增长曲线问：‘这条线这么平，是你画图手抖了吗？’",
@@ -226,7 +226,7 @@ const quarterRandomEvents = Object.assign({
     ],
   },
 
-}, content.events || {});
+});
 
 const quarterTickerBase = {
   1: ["安然再获‘最具创新企业’提名，华尔街沉浸式鼓掌。", "分析师圈流传一句话：‘利润越好看，解释越复杂。’"],
