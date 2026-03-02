@@ -755,9 +755,9 @@ function renderQuarterStatus() {
   if (!sceneMap[stage].includes(state.activeScene)) setActiveScene("desk");
 
   const exerciseBtn = document.getElementById("exerciseBtn");
-  const canExercise = !(state.exercisedThisQuarter || state.personalOptions <= 0) && state.stock >= 95;
+  const canExercise = !(state.exercisedThisQuarter || state.personalOptions <= 0);
   exerciseBtn.disabled = !canExercise;
-  exerciseBtn.style.display = canExercise ? "" : "none";
+  exerciseBtn.style.display = "";
   exerciseBtn.textContent = "[内幕变现]";
   const routineBtn = document.getElementById("routineBtn");
   if (routineBtn) {
@@ -770,6 +770,7 @@ function renderQuarterStatus() {
     lobbyBtn.style.display = (stage >= 3 && state.isLobbyUnlocked) ? "" : "none";
   }
   updateUnlockFlags();
+  setActiveScene(state.activeScene);
 }
 
 
@@ -841,9 +842,10 @@ function renderActionPanel() {
       const before = snapshotCore();
       state.realCash *= 1.05;
       state.stock *= 1.02;
+      state.privateAccount += 2;
       state.shareholderPressure = Math.min(100, state.shareholderPressure + 5);
       state.lastActionSummary = "稳健增长";
-      feed("稳健增长执行：现金+5%，股价+2%。", "good");
+      feed("稳健增长执行：现金+5%，股价+2%，顺手把一点奖金塞进了避税天堂。", "good");
       showDelta(before, "稳健增长结算");
     });
     bind("aggressiveBtn", () => {
@@ -867,12 +869,21 @@ function renderActionPanel() {
     <p>War Room：CFO，我们需要一点‘会计魔法’。</p>
     <label for="mtmRatio">MTM 比例：0%（诚实） ↔ 100%（疯狂）</label>
     <input type="range" id="mtmRatio" min="0" max="100" step="5" value="${state.mtmRatio}" />
+    <p id="mtmPreview" class="small"></p>
     <p class="small">MTM 就是把未来 20 年的饼先画在今天的盘子里。只要我们不停止画饼，就没人发现我们在挨饿。</p>
     <button id="mtmApplyBtn" class="choice-btn" style="background:#7e1e1e;border-color:#d65a5a">[签署 MTM 方案]</button>
   `;
   const slider = document.getElementById("mtmRatio");
   const btn = document.getElementById("mtmApplyBtn");
-  if (!slider || !btn) return;
+  const preview = document.getElementById("mtmPreview");
+  if (!slider || !btn || !preview) return;
+  const renderPreview = () => {
+    const ratio = Number(slider.value);
+    const lift = ratio / 100;
+    preview.textContent = `预计结果：账面利润 +${(120 * lift).toFixed(1)}M｜股价 +${(12 * lift).toFixed(1)}｜风险 +${(14 * lift).toFixed(1)}｜股东压力 -${(20 * lift).toFixed(1)}`;
+  };
+  slider.oninput = renderPreview;
+  renderPreview();
   btn.onclick = () => {
     if (!spendAction("MTM 决策")) return;
     const before = snapshotCore();
@@ -1160,8 +1171,9 @@ function exerciseOptions() {
     btn.onclick = () => {
       if (o.ratio <= 0) {
         state.exercisedThisQuarter = true;
+        state.privateAccount += 1;
         state.historyLog.push("期权策略：本季不变现");
-        feed("你决定暂不变现：道德感保住了，现金流没有。", "good");
+        feed("你决定暂不变现：道德感保住了，但你还是悄悄优化了 1M 的离岸税务结构。", "good");
         modal.classList.add("hidden");
         render();
         return;
@@ -1631,6 +1643,7 @@ function doRoutineCheckin() {
   state.realCash *= 1.05;
   state.stock *= 1.02;
   state.paperGain += 5;
+  state.privateAccount += 1;
   state.shareholderPressure = Math.min(100, state.shareholderPressure + 4);
   state.consecutiveNormalOps += 1;
   state.lastActionSummary = "日常打卡";
