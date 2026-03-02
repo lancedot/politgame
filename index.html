@@ -40,9 +40,10 @@
       <p id="forecastCompare" class="small"></p>
       <p id="operationHint" class="small"></p>
       <p id="optionInfo" class="small"></p>
-      <button id="exerciseBtn">个人期权变现</button>
+      <button id="exerciseBtn">[紧急处置个人期权]</button>
       <button id="lobbyingBtn">公关与游说</button>
-      <button id="nextQuarterBtn" disabled>发布财报并进入下一季度</button>
+      <button id="routineBtn">[日常业务打卡]</button>
+      <button id="nextQuarterBtn" disabled>[发布季度财报]</button>
     </section>
 
     <section class="panel" id="timelinePanel">
@@ -59,6 +60,7 @@
       <div class="progress-row"><span>媒体热度</span><progress id="mediaBar" max="100" value="0"></progress></div>
       <div class="progress-row"><span>吹哨压力</span><progress id="whistleBar" max="100" value="0"></progress></div>
       <div class="progress-row"><span>审计独立性下降</span><progress id="auditBar" max="100" value="0"></progress></div>
+      <div class="progress-row"><span>董事会耐心</span><progress id="boardBar" max="100" value="0"></progress></div>
       <p id="investigationHint" class="small"></p>
     </section>
 
@@ -90,7 +92,7 @@
     </section>
 
     <section class="panel" id="reportPanel">
-      <h2>季度报告生成器</h2>
+      <h2>季度财务快报</h2>
       <p class="small">商业黑话自动生成，供投资者情绪管理使用。</p>
       <article id="report"></article>
     </section>
@@ -144,6 +146,7 @@
     </div>
   </div>
 
+  <script src="content.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

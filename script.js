@@ -1,3 +1,5 @@
+const content = window.GAME_CONTENT || {};
+
 const state = {
   quarter: 1,
   paperGain: 95,
@@ -119,7 +121,7 @@ const timelineData = {
   },
 };
 
-const quarterRandomEvents = {
+const quarterRandomEvents = Object.assign({
   1: {
     title: "季度突发：做空者质疑",
     desc: "做空机构钱诺斯在 CNBC 上公开质疑我们的现金流不匹配，盘中股价先跌 10%。",
@@ -169,7 +171,7 @@ const quarterRandomEvents = {
     ],
   },
 
-};
+}, content.events || {});
 
 const quarterTickerBase = {
   1: ["安然再获‘最具创新企业’提名，华尔街沉浸式鼓掌。", "分析师圈流传一句话：‘利润越好看，解释越复杂。’"],
@@ -420,10 +422,11 @@ function animateNumber(el, from, to, formatter) {
 function renderMetrics() {
   updateMarketDerived();
   const metrics = [
-    { key: "stock", label: "Stock 股价", value: state.stock, fmt: (v) => `$${v.toFixed(1)}` },
-    { key: "cash", label: "Real Cash 现金流", value: state.realCash, fmt: (v) => formatMoney(v) },
-    { key: "risk", label: "Suspicion 怀疑度", value: state.risk, fmt: (v) => `${Math.round(v)} / 120` },
-    { key: "patience", label: "Board Patience 董事会耐心", value: state.boardPatience, fmt: (v) => `${Math.round(v)} / 100` },
+    { key: "stock", label: content.statusLabels?.price || "华尔街估值 (Market Cap/Price)", value: state.stock, fmt: (v) => `$${v.toFixed(1)}` },
+    { key: "cash", label: content.statusLabels?.cash || "金库头寸 (Actual Liquidity)", value: state.realCash, fmt: (v) => formatMoney(v) },
+    { key: "paper", label: content.statusLabels?.paper || "叙事利润 (Narrative Earnings)", value: state.paperGain, fmt: (v) => formatMoney(v) },
+    { key: "risk", label: content.statusLabels?.risk || "SEC 绞索 (Regulatory Noose)", value: state.risk, fmt: (v) => `${Math.round(v)} / 120` },
+    { key: "q", label: content.statusLabels?.quarter || "生存周期 (Fiscal Quarter)", value: state.quarter, fmt: (v) => `Q${Math.round(v)}` },
   ];
 
   document.getElementById("metrics").innerHTML = metrics
@@ -481,6 +484,8 @@ function renderInvestigationPanel() {
   document.getElementById("mediaBar").value = state.mediaHeat;
   document.getElementById("whistleBar").value = state.whistleblowerPressure;
   document.getElementById("auditBar").value = 100 - state.auditIndependence;
+  const boardBar = document.getElementById("boardBar");
+  if (boardBar) boardBar.value = state.boardPatience;
 
   const hint = [];
   if (state.secAttention > 65) hint.push("SEC 已进入深度问询");
@@ -544,7 +549,11 @@ function renderQuarterStatus() {
     : "请完成【核心任务】→【审计沟通】→【分析师会议】三步。";
 
   document.getElementById("nextQuarterBtn").disabled = !(state.actionDone && state.auditDone && state.callDone);
+  document.getElementById("nextQuarterBtn").textContent = content.buttons?.nextQuarter || "[发布季度财报]";
   document.getElementById("exerciseBtn").disabled = state.exercisedThisQuarter || state.personalOptions <= 0;
+  document.getElementById("exerciseBtn").textContent = content.buttons?.exercise || "[紧急处置个人期权]";
+  const routineBtn = document.getElementById("routineBtn");
+  if (routineBtn) routineBtn.disabled = state.actionDone;
 }
 
 function renderTermButtons(keys) {
@@ -578,7 +587,7 @@ function renderActionPanel() {
 
   if (state.quarter === 1) {
     root.innerHTML = `
-      <label for="optimism">【资产价值重估 (Re-mark Assets)】参数（50%-100%）</label>
+      <label for="optimism">[重估未来价值] 参数（50%-100%）</label>
       <input type="range" id="optimism" min="50" max="100" step="5" value="65" ${state.actionDone ? "disabled" : ""} />
       <p id="optimismPreview"></p>
       ${renderImpact("选择前影响预览", [
@@ -587,7 +596,7 @@ function renderActionPanel() {
         "现实后果：若≥85，后续分析师提问转为‘激进质询’",
       ])}
       ${renderTermButtons(["MTM"])}
-      <button id="actionBtn" ${state.actionDone ? "disabled" : ""}>【资产价值重估 (Re-mark Assets)】执行</button>
+      <button id="actionBtn" ${state.actionDone ? "disabled" : ""}>[重估未来价值]</button>
     `;
 
     const slider = document.getElementById("optimism");
@@ -627,7 +636,7 @@ function renderActionPanel() {
 
   if (state.quarter === 2) {
     root.innerHTML = `
-      <p>【资产负债表表外化 (Off-Balance Sheet Financing)】请选择 LJM2 承接规模：</p>
+      <p>[启动表外融资方案] 请选择 LJM2 承接规模：</p>
       ${renderImpact("选择前影响预览", [
         "将高负债资产剥离至关联实体 LJM2。让我们的财报看起来像处女一样纯洁。",
         "$1000M：账面收益 +$80M，SEC +9，吹哨压力 +7，股价短期更强",
@@ -837,7 +846,7 @@ function renderAuditPanel() {
       },
     },
     {
-      label: "支付 $8M 咨询费（勾结）",
+      label: "[支付‘审计咨询费’]",
       apply: () => {
         state.realCash -= 8;
         state.risk = Math.max(0, state.risk - 14);
@@ -897,30 +906,24 @@ function getAnalystQuestion() {
 function renderCallChoices() {
   const root = document.getElementById("callChoices");
   root.innerHTML = "";
-  document.getElementById("callPrompt").textContent = `分析师提问：${getAnalystQuestion()}`;
-  const charmBonus = Math.floor(state.charisma / 25);
-  const options = analystOptionBank[state.quarter] || analystOptionBank[1];
-
+  document.getElementById("callPrompt").textContent = "场景描述：为什么你们的盈利和现金流分歧如此之大？";
+  const options = [
+    { label: "因为你没上过高级会计课，蠢货。", stock: 5, risk: 10, cls: "warn" },
+    { label: "这是一个复杂的长期资本运作模型。", stock: 0, risk: 2, cls: "good" },
+  ];
   options.forEach((opt) => {
     const btn = document.createElement("button");
     btn.className = "choice-btn";
-    btn.textContent = `${opt.label}（股价 +${opt.stock + charmBonus} / 风险 +${opt.risk}）`;
+    btn.textContent = `${opt.label}（股价 ${opt.stock >= 0 ? "+" : ""}${opt.stock} / 风险 +${opt.risk}）`;
     btn.disabled = state.callDone;
     btn.onclick = () => {
       if (state.callDone) return;
-      state.stock += opt.stock + charmBonus;
+      state.stock += opt.stock;
       applyRiskPressure(opt.risk);
-      state.secAttention += opt.sec || 0;
-      state.mediaHeat += opt.media || 0;
-      state.whistleblowerPressure += opt.whistle || 0;
-      state.charisma += opt.charisma || 0;
-      if (opt.paper) state.paperGain += opt.paper;
-      if (opt.forecast) state.forecastPaperGain += opt.forecast;
-      if (opt.corruption) bumpCorruption(opt.corruption);
-      state.lastCallSummary = opt.key;
-      feed(`你在会中表态：${opt.label}`, opt.key.includes("attack") ? "warn" : "good");
-      state.historyLog.push(`会议：${opt.key}`);
       state.callDone = true;
+      state.lastCallSummary = opt.label.includes("蠢货") ? "q-attack" : "q-jargon";
+      state.historyLog.push(`会议：${state.lastCallSummary}`);
+      feed(`你在会上回应：${opt.label}`, opt.cls);
       render();
     };
     root.appendChild(btn);
@@ -1217,7 +1220,7 @@ function settleQuarterPostFinance() {
   state.lobbyingUsedThisQuarter = false;
   state.tipShredBoost = false;
   state.riskGrowthFactor = 1;
-  feed("会后总结：董事会一致认为‘透明度是个可以分期实现的目标’。", "warn");
+  feed("[季度财务快报] 华尔街为我们的‘成长’欢呼，尽管你的金库已经空得能听到回声。", "warn");
   render();
 }
 
@@ -1236,14 +1239,14 @@ function endGame() {
 
   let ending;
   if (state.risk > 120 || (state.secAttention > 98 && state.privateAccount < 260)) {
-    ending = ["F级：替罪羔羊", "法官判处你24年徒刑。你成为了贪婪的代名词，画像被印进所有商学院反面教材。"];
+    ending = ["F级：联邦监狱的明星", "你将在监狱里教狱警如何通过 SPE 偷走食堂的经费。"];
   } else if (state.quarter >= 12 && state.privateAccount > 500 && state.risk < 60) {
-    ending = ["S级：金融教父", "你成功在雪崩前退休。现在你在开曼群岛游艇上看着安然破产新闻，彷佛这只是别人的故事。"];
+    ending = ["S级：华尔街的隐形教父", "公司灰飞烟灭，你却在私人海滩上思考下一次投资。"];
   } else if (state.quarter >= 12 && state.privateAccount > 100 && state.risk < 90) {
-    ending = ["A级：优雅脱身", "你名义上被判两年，但在精英律师团操作下只剩社区服务；海外账户足够你后半生无忧。"];
+    ending = ["A级：体面的流亡者", "虽然背负骂名，但离岸账户的数字足以让你在欧洲过上贵族生活。"];
     state.prisonYears = Math.max(0, Math.min(state.prisonYears, 2));
   } else if (state.firedByBoard) {
-    ending = ["B级：平庸的牺牲品", "董事会提前解雇了你：你不够狠，也不够快，只留下绩效复盘与离职协议。"];
+    ending = ["B级：失败的傀儡", "你尝试玩火，但你不够狠。董事会像扔垃圾一样把你踢了出去。"];
     state.prisonYears = 0;
   } else {
     ending = ["C级：破产名流", "公司破产重组，你成了财经节目常驻嘉宾：名声很响，资产很薄。"];
@@ -1334,9 +1337,22 @@ window.debug = (patch = {}) => {
   return { ...state };
 };
 
+function doRoutineCheckin() {
+  if (state.actionDone) return;
+  state.realCash += 18;
+  state.paperGain += 5;
+  state.boardPatience = Math.max(0, state.boardPatience - 15);
+  state.consecutiveNormalOps += 1;
+  state.lastActionSummary = "日常打卡";
+  state.actionDone = true;
+  feed("天然气管道巡检完成，效率提升 0.2%。", "warn");
+  render();
+}
+
 document.getElementById("nextQuarterBtn").addEventListener("click", settleQuarter);
 document.getElementById("exerciseBtn").addEventListener("click", exerciseOptions);
 document.getElementById("lobbyingBtn").addEventListener("click", openLobbyingModal);
+document.getElementById("routineBtn").addEventListener("click", doRoutineCheckin);
 document.getElementById("closeQuoteBtn").addEventListener("click", () => document.getElementById("quoteModal").classList.add("hidden"));
 
 loadGame();
