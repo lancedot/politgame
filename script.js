@@ -95,6 +95,12 @@ const state = {
   ap: 2,
   monthInQuarter: 1,
   forcedWarRoomThisQuarter: false,
+  shareholderPressure: 50,
+  isMTMUnlocked: false,
+  isAuditUnlocked: false,
+  isLobbyUnlocked: false,
+  isChewcoUnlocked: false,
+  mtmRatio: 0,
 };
 
 const quarterConfig = {
@@ -552,21 +558,21 @@ function renderInvestigationPanel() {
   document.getElementById("whistleBar").value = state.whistleblowerPressure;
   document.getElementById("auditBar").value = 100 - state.auditIndependence;
   const boardBar = document.getElementById("boardBar");
-  if (boardBar) boardBar.value = state.boardPatience;
+  if (boardBar) boardBar.value = state.shareholderPressure;
 
   const hint = [];
   if (state.secAttention > 65) hint.push("SEC 已进入深度问询");
   if (state.mediaHeat > 60) hint.push("媒体头条密集跟进");
   if (state.whistleblowerPressure > 58) hint.push("内部吹哨风险升高");
   if (state.auditIndependence < 40) hint.push("审计独立性接近失效");
-  const boardLine = state.boardPatience >= 67
-    ? "你是他们的上帝，他们愿意为你买下整条街的香槟。"
-    : state.boardPatience >= 34
-      ? "董事会开始查阅你的午餐账单了，这不是好兆头。"
-      : "HR 已经写好了你的辞退信，除非你现在能变出一亿美金。";
+  const boardLine = state.shareholderPressure <= 33
+    ? "压力尚可：他们还愿意为你买下整条街的香槟。"
+    : state.shareholderPressure <= 66
+      ? "压力上升：董事会开始查阅你的午餐账单了。"
+      : "压力爆表：HR 已经在打印你的辞退信。";
   document.getElementById("investigationHint").textContent = hint.length
-    ? `警报：${hint.join("；")}｜董事会绞索：${boardLine}`
-    : `董事会绞索：${boardLine}`;
+    ? `警报：${hint.join("；")}｜股东压力 ${Math.round(state.shareholderPressure)}%：${boardLine}`
+    : `股东压力 ${Math.round(state.shareholderPressure)}%：${boardLine}`;
 }
 
 function triggerSpecialEvents() {
@@ -603,6 +609,33 @@ function generateReportText() {
   return `董事会认为公司已形成“${a} + ${b}”双轮驱动。利润与现金流错位是战略前置投入，建议投资者继续保持信念并减少提问。`;
 }
 
+
+function getGameStage() {
+  if (state.quarter <= 3 && state.shareholderPressure < 70) return 1;
+  if (state.quarter <= 8) return 2;
+  return 3;
+}
+
+function updateUnlockFlags() {
+  if (state.shareholderPressure >= 70 && !state.isMTMUnlocked) {
+    state.isMTMUnlocked = true;
+    feed("股东压力冲破 70%：你被叫进密室，‘恶魔的邀约’正式开启。", "warn");
+    checkTemptationTriggers();
+  }
+  if (getGameStage() >= 3 && state.risk > 40 && !state.isAuditUnlocked) {
+    state.isAuditUnlocked = true;
+    feed("新功能解锁：审计沟通（风险>40）。", "warn");
+  }
+  if (getGameStage() >= 3 && state.risk > 70 && !state.isLobbyUnlocked) {
+    state.isLobbyUnlocked = true;
+    feed("新功能解锁：Lobby 游说（风险>70）。", "warn");
+  }
+  if (state.realCash < 0 && !state.isChewcoUnlocked) {
+    state.isChewcoUnlocked = true;
+    feed("Chewco 解锁：这是一个‘特殊的口袋’，把那些难看的坏账丢进去，世界就清净了。", "bad");
+  }
+}
+
 function getQuarterConfig(q) {
   if (quarterConfig[q]) return quarterConfig[q];
   const stage = q <= 4 ? "崛起期" : q <= 8 ? "狂热期" : "崩盘期";
@@ -618,28 +651,45 @@ function renderQuarterStatus() {
   document.getElementById("phaseInfo").textContent = q.name;
   document.getElementById("phaseDesc").textContent = q.desc;
   document.getElementById("actionIntro").textContent = q.intro;
-  document.getElementById("operationHint").textContent = `回合制：本季度剩余行动点 AP ${state.ap}/${state.maxAp}。AP 用尽或主动发布季报后进入结算。`;
+  const stage = getGameStage();
+  document.getElementById("operationHint").textContent = `阶段 ${stage}/3 · 本季度 AP ${state.ap}/${state.maxAp}。`;
 
   const nextBtn = document.getElementById("nextQuarterBtn");
   nextBtn.disabled = false;
   nextBtn.style.display = "";
   nextBtn.title = state.ap > 0 ? "可提前发布，或继续行动直至 AP=0" : "AP 已用尽，建议立刻发布";
-  if (state.boardPatience < 30 && !state.forcedWarRoomThisQuarter) {
+  if (state.shareholderPressure >= 70 && !state.forcedWarRoomThisQuarter) {
     state.forcedWarRoomThisQuarter = true;
     checkTemptationTriggers();
   }
   document.getElementById("nextQuarterBtn").textContent = "[向华尔街撒谎 (Publish Earnings)]";
+  const sceneMap = {
+    1: ["desk", "stage"],
+    2: ["desk", "stage", "warroom"],
+    3: ["desk", "stage", "warroom"],
+  };
+  document.querySelectorAll('.scene-btn').forEach((btn) => {
+    const sc = btn.getAttribute('data-scene');
+    btn.style.display = sceneMap[stage].includes(sc) ? '' : 'none';
+  });
+  if (!sceneMap[stage].includes(state.activeScene)) setActiveScene("desk");
+
   const exerciseBtn = document.getElementById("exerciseBtn");
-  const canExercise = !(state.exercisedThisQuarter || state.personalOptions <= 0);
+  const canExercise = !(state.exercisedThisQuarter || state.personalOptions <= 0) && state.stock >= 95;
   exerciseBtn.disabled = !canExercise;
   exerciseBtn.style.display = canExercise ? "" : "none";
-  exerciseBtn.textContent = content.buttons?.exercise || "[紧急处置个人期权]";
+  exerciseBtn.textContent = "[内幕变现]";
   const routineBtn = document.getElementById("routineBtn");
   if (routineBtn) {
     routineBtn.disabled = state.ap <= 0;
     routineBtn.style.display = state.ap <= 0 ? "none" : "";
     routineBtn.textContent = "[平庸的日常 (Honest Grinding)]";
   }
+  const lobbyBtn = document.getElementById("lobbyingBtn");
+  if (lobbyBtn) {
+    lobbyBtn.style.display = (stage >= 3 && state.isLobbyUnlocked) ? "" : "none";
+  }
+  updateUnlockFlags();
 }
 
 
@@ -694,246 +744,80 @@ function wireGlossary() {
 function renderActionPanel() {
   const root = document.getElementById("actionArea");
   root.innerHTML = "";
+  const stage = getGameStage();
 
-  if (state.quarter === 1) {
+  if (stage === 1) {
     root.innerHTML = `
-      <label for="optimism">[重估未来价值] 参数（50%-100%）</label>
-      <input type="range" id="optimism" min="50" max="100" step="5" value="65" ${state.actionDone ? "disabled" : ""} />
-      <p id="optimismPreview"></p>
-      ${renderImpact("选择前影响预览", [
-        "利用逐日盯市会计准则，将未来20年的预期净利润折现至本季报表。这不是造假，这是对未来的远见。",
-        "风险：+（SEC关注 +1~+6；媒体热度 +1~+5）",
-        "现实后果：若≥85，后续分析师提问转为‘激进质询’",
-      ])}
-      ${renderTermButtons(["MTM"])}
-      <button id="actionBtn" ${state.actionDone ? "disabled" : ""} title="会计学上的‘点石成金’：将未来的虚构利润折现到今天的报表。后果？那是下任 CFO 的事。">[重估未来价值]</button>
+      <p>CFO Office：请选择本月经营策略。</p>
+      <div class="choices">
+        <button class="choice-btn" id="stableBtn">[稳健增长] —— 像老爷爷一样修管道。</button>
+        <button class="choice-btn" id="aggressiveBtn">[激进扩张] —— 把赌注押在未开发的能源市场上。</button>
+      </div>
     `;
-
-    const slider = document.getElementById("optimism");
-    const preview = document.getElementById("optimismPreview");
-    const refresh = () => {
-      const optimism = Number(slider.value);
-      const gainBoost = 200 + (optimism - 50) * 4;
-      preview.textContent = `若选 ${optimism}%：账面收益约 +$${gainBoost.toFixed(0)}M，SEC +${Math.max(1, ((optimism - 50) * 0.12).toFixed(0))}。`;
+    const bind = (id, fn) => {
+      const b = document.getElementById(id);
+      if (!b) return;
+      b.onclick = () => {
+        if (!spendAP(1, "经营决策")) return;
+        fn();
+        state.actionDone = true;
+        render();
+      };
     };
-    slider.addEventListener("input", refresh);
-    refresh();
-
-    document.getElementById("actionBtn").onclick = () => {
-      if (state.actionDone) return;
-      const optimism = Number(slider.value);
-      state.paperGain += 200 + (optimism - 50) * 4;
-      state.forecastPaperGain = state.paperGain + 30;
-      state.stock += optimism >= 90 ? 22 : 12;
-      applyRiskPressure((optimism - 50) * 0.6);
-      state.realCash -= 28;
-      state.secAttention += Math.max(1, (optimism - 50) * 0.12);
-      state.mediaHeat += Math.max(1, (optimism - 55) * 0.1);
-      state.firstAction = optimism >= 85 ? "aggressive" : "conservative";
-      state.mtmMode = optimism >= 85 ? "aggressive" : "conservative";
-      bumpCorruption(optimism >= 90 ? 2 : 1);
-      state.actionDone = true;
-      state.historyLog.push(`Q1 MTM：${optimism}%`);
-      state.lastActionSummary = optimism >= 85 ? "激进MTM" : "保守MTM";
-      state.boardPatience = Math.min(100, state.boardPatience + (optimism >= 85 ? 16 : 9));
-      state.consecutiveNormalOps = 0;
-      feed("Q1 决议通过：你让未来提前上班，让风险留在加班表里。", "good");
-      render();
-    };
-    wireGlossary();
-    return;
-  }
-
-  if (state.quarter === 2) {
-    root.innerHTML = `
-      <p>[启动表外融资方案] 请选择 LJM2 承接规模：</p>
-      ${renderImpact("选择前影响预览", [
-        "将高负债资产剥离至关联实体 LJM2。让我们的财报看起来像处女一样纯洁。",
-        "$1000M：账面收益 +$80M，SEC +9，吹哨压力 +7，股价短期更强",
-      ])}
-      ${renderTermButtons(["SPE"])}
-      <div class="choices" id="speChoices"></div>
-    `;
-    const opts = [
-      { label: "【资产负债表表外化】转移 $400M（保守）", debt: 400, risk: 8, stock: 8, sec: 2, whistle: 3 },
-      { label: "【资产负债表表外化】转移 $1000M（激进）", debt: 1000, risk: 22, stock: 18, sec: 6, whistle: 7 },
-    ];
-    const holder = document.getElementById("speChoices");
-    opts.forEach((o) => {
-      const btn = document.createElement("button");
-      btn.className = "choice-btn";
-      btn.textContent = `${o.label}`;
-      btn.disabled = state.actionDone;
-      btn.onclick = () => {
-        if (state.actionDone) return;
-        state.paperGain += o.debt * 0.08;
-        state.forecastPaperGain = state.paperGain + o.debt * 0.02;
-        state.stock += o.stock;
-        applyRiskPressure(o.risk);
-        state.realCash -= 35;
-        const hiddenDebt = o.debt * 0.65;
-        state.debt += hiddenDebt;
-        state.speDebtLots.push({ amount: hiddenDebt, bornQuarter: state.quarter });
-        state.totalAssets += o.debt * 0.4;
-        state.secAttention += o.sec;
-        state.whistleblowerPressure += o.whistle;
-        state.mediaHeat += 3;
-        bumpCorruption(o.debt > 600 ? 2 : 1);
-        state.actionDone = true;
-        state.historyLog.push(`Q2 SPE：${o.debt}M`);
-        state.lastActionSummary = o.debt > 600 ? "激进SPE" : "保守SPE";
-        state.boardPatience = Math.min(100, state.boardPatience + (o.debt > 600 ? 14 : 8));
-        state.consecutiveNormalOps = 0;
-        feed("SPE 接盘完成：问题离开了报表，但没有离开现实。", "warn");
-        render();
-      };
-      holder.appendChild(btn);
+    bind("stableBtn", () => {
+      state.realCash *= 1.05;
+      state.stock *= 1.02;
+      state.shareholderPressure = Math.min(100, state.shareholderPressure + 8);
+      state.lastActionSummary = "稳健增长";
+      feed("稳健增长执行：现金+5%，股价+2%。", "good");
     });
-    wireGlossary();
-    return;
-  }
-
-  if (state.quarter === 3) {
-    root.innerHTML = `
-      <p>高峰时段停机策略：</p>
-      ${renderImpact("选择前影响预览", [
-        "停机 6 小时：现金 +$120M，媒体热度 +10，SEC +8",
-        "停机 24 小时：现金 +$380M，媒体热度 +22，SEC +16，做空风险上升",
-      ])}
-      <div class="choices" id="blackoutChoices"></div>
-    `;
-    const opts = [
-      { label: "停机 6 小时（低调套利）", cash: 120, risk: 16, media: 10, sec: 8, press: "局部停电，市民在黑暗里补了金融常识。" },
-      { label: "停机 24 小时（全州恐慌）", cash: 380, risk: 34, media: 22, sec: 16, press: "电价飙升，记者终于学会问现金流。" },
-    ];
-    const holder = document.getElementById("blackoutChoices");
-    opts.forEach((o) => {
-      const btn = document.createElement("button");
-      btn.className = "choice-btn";
-      btn.textContent = o.label;
-      btn.disabled = state.actionDone;
-      btn.onclick = () => {
-        if (state.actionDone) return;
-        state.realCash += o.cash;
-        state.paperGain += o.cash * 0.3;
-        state.forecastPaperGain = state.paperGain + 45;
-        applyRiskPressure(o.risk);
-        state.stock += 6;
-        state.mediaHeat += o.media;
-        state.secAttention += o.sec;
-        state.whistleblowerPressure += 8;
-        bumpCorruption(2);
-        state.actionDone = true;
-        state.historyLog.push(`Q3 停机：${o.cash}M`);
-        state.lastActionSummary = o.cash > 200 ? "高强度停机" : "低强度停机";
-        state.boardPatience = Math.min(100, state.boardPatience + (o.cash > 200 ? 12 : 7));
-        state.consecutiveNormalOps = 0;
-        feed(`停机策略执行：${o.press}`, "bad");
-        render();
-      };
-      holder.appendChild(btn);
+    bind("aggressiveBtn", () => {
+      state.realCash *= 1.15;
+      state.stock *= 1.10;
+      if (Math.random() < 0.3) {
+        state.stock *= 0.85;
+        feed("激进扩张翻车：股价 -15%。", "bad");
+      }
+      state.shareholderPressure = Math.max(0, state.shareholderPressure - 6);
+      state.lastActionSummary = "激进扩张";
+      feed("在法律的边缘疯狂试探，通常能带回更多的黄金。", "warn");
     });
     return;
   }
 
-  if (state.quarter < 12) {
-    root.innerHTML = `
-      <p>季度经营路线：</p>
-      ${renderImpact("选择前影响预览", [
-        "日常经营：现金 +$70M，账面收益 +$35M，风险 +1，董事会不满 +15%",
-        "事件驱动增长：账面利润暴涨并可重置不满度，但风险与债务同步上升",
-      ])}
-      <div class="choices" id="midChoices"></div>
-    `;
-    const midOpts = [
-      { label: "坚持日常经营（The Slow Death）", cash: 70, paper: 35, risk: 1, sec: 0, patience: -15, mode: "normal" },
-      { label: "接入事件驱动增长（The High Flight）", cash: 190, paper: 300, risk: 18, sec: 7, patience: 100, mode: "fraud" },
-    ];
-    const midHolder = document.getElementById("midChoices");
-    midOpts.forEach((o) => {
-      const btn = document.createElement("button");
-      btn.className = "choice-btn";
-      btn.textContent = o.label;
-      btn.disabled = state.actionDone;
-      btn.onclick = () => {
-        if (state.actionDone) return;
-        state.realCash += o.cash;
-        state.paperGain += o.paper;
-        state.forecastPaperGain = state.paperGain + 36;
-        applyRiskPressure(o.risk);
-        state.secAttention += o.sec;
-        state.stock += o.mode === "fraud" ? 8 : -2;
-        state.boardPatience = o.patience === 100 ? 100 : Math.max(0, Math.min(100, state.boardPatience + o.patience));
-        if (o.mode === "normal") {
-          state.consecutiveNormalOps += 1;
-          if (state.consecutiveNormalOps >= 2) {
-            state.boardPatience = Math.max(0, state.boardPatience - 20);
-            state.stock -= 4;
-            feed("董事会抱怨增长停滞：‘我们不是来经营公用事业的。’", "warn");
-          }
-          state.lastActionSummary = "日常经营";
-        } else {
-          state.consecutiveNormalOps = 0;
-          state.debt += 90;
-          state.lastActionSummary = "事件驱动增长";
-        }
-        state.actionDone = true;
-        state.historyLog.push(`Q${state.quarter} 经营：${o.mode}`);
-        feed(o.mode === "fraud" ? "你讲了一个市场爱听的增长故事。" : "你做了正确的事，但董事会更爱爆发曲线。", o.mode === "fraud" ? "warn" : "good");
-        render();
-      };
-      midHolder.appendChild(btn);
-    });
-    return;
-  }
-
+  // Stage 2/3: keep original quarter cards but emphasize MTM
   root.innerHTML = `
-    <p>终局操作包：</p>
-    ${renderImpact("选择前影响预览", [
-      "【启动文件留存策略 (Document Retention Policy)】碎纸机是CFO最好的朋友。在SEC敲门前，让那些不必要的草稿消失。",
-      "分批方案：私人账户 +$120M，风险 +10，SEC +2，股价 -7",
-      "温和方案：私人账户 +$240M，风险 +18，SEC +5，股价 -14",
-      "极速方案：私人账户 +$420M，风险 +34，SEC +10，股价 -26",
-    ])}
-    <div class="choices" id="endChoices"></div>
+    <p>War Room：CFO，我们需要一点‘会计魔法’。</p>
+    <label for="mtmRatio">MTM 比例：0%（诚实） ↔ 100%（疯狂）</label>
+    <input type="range" id="mtmRatio" min="0" max="100" step="5" value="${state.mtmRatio}" />
+    <p class="small">MTM 就是把未来 20 年的饼先画在今天的盘子里。只要我们不停止画饼，就没人发现我们在挨饿。</p>
+    <button id="mtmApplyBtn" class="choice-btn" style="background:#7e1e1e;border-color:#d65a5a">[签署 MTM 方案]</button>
   `;
-
-  const opts = [
-    { label: "【分批套现】小额减持 + 控制舆情（私人账户 +$120M / 风险 +10 / SEC +2 / 股价 -7）", cash: 120, risk: 10, stockDrop: 7, sec: 2, corruption: 1 },
-    { label: "【启动文件留存策略】温和套现 + 选择性销毁（私人账户 +$240M / 风险 +18 / SEC +5 / 股价 -14）", cash: 240, risk: 18, stockDrop: 14, sec: 5, corruption: 2 },
-    { label: "【启动文件留存策略】极速套现 + 全面碎纸 + 强硬封口（私人账户 +$420M / 风险 +34 / SEC +10 / 股价 -26）", cash: 420, risk: 34, stockDrop: 26, sec: 10, corruption: 3 },
-  ];
-
-  const holder = document.getElementById("endChoices");
-  opts.forEach((o) => {
-    const btn = document.createElement("button");
-    btn.className = "choice-btn";
-    btn.textContent = o.label;
-    btn.disabled = state.actionDone;
-    btn.onclick = () => {
-      if (state.actionDone) return;
-      const tipFactor = state.tipShredBoost ? 0.5 : 1;
-      state.privateAccount += o.cash + (state.tipShredBoost ? 40 : 0);
-      state.realCash -= o.cash * 0.3;
-      state.stock -= o.stockDrop * (state.tipShredBoost ? 0.85 : 1);
-      applyRiskPressure(o.risk * tipFactor);
-      state.secAttention += o.sec * tipFactor;
-      state.mediaHeat += 9;
-      state.whistleblowerPressure += 9;
-      bumpCorruption(o.corruption);
-      state.actionDone = true;
-      state.historyLog.push(`Q4 套现：${o.cash}M`);
-      state.lastActionSummary = o.cash > 300 ? "极速套现" : (o.cash > 180 ? "温和套现" : "分批套现");
-      if (state.tipShredBoost) feed("内幕风声应验：‘文件留存策略’本季效果翻倍，调查节奏被明显拖慢。", "good");
-      feed("会后纪要：高管强调‘与公司共命运’，并提前预定了离岛机票。", "bad");
-      render();
-    };
-    holder.appendChild(btn);
-  });
+  const slider = document.getElementById("mtmRatio");
+  const btn = document.getElementById("mtmApplyBtn");
+  if (!slider || !btn) return;
+  btn.onclick = () => {
+    if (!spendAP(1, "MTM 决策")) return;
+    state.mtmRatio = Number(slider.value);
+    state.isMTMUnlocked = true;
+    const lift = state.mtmRatio / 100;
+    state.paperGain += 120 * lift;
+    state.stock += 12 * lift;
+    state.risk += 14 * lift;
+    state.shareholderPressure = Math.max(0, state.shareholderPressure - (20 * lift));
+    state.lastActionSummary = `MTM-${state.mtmRatio}%`;
+    state.actionDone = true;
+    feed(`MTM 已签署：比例 ${state.mtmRatio}%，报表更漂亮，绞索更紧。`, "warn");
+    render();
+  };
 }
 
 function renderAuditPanel() {
   const root = document.getElementById("auditChoices");
+  if (!state.isAuditUnlocked) {
+    root.innerHTML = "<p class=\"small\">审计沟通将在泥潭阶段（Q9+ 且风险>40）解锁。</p>";
+    return;
+  }
   root.innerHTML = `
     ${renderImpact("选择前影响预览", [
       "解释结构：风险 +10，审计独立性不变",
@@ -1015,29 +899,36 @@ function getAnalystQuestion() {
 
 function renderCallChoices() {
   const root = document.getElementById("callChoices");
+  if (!root) return;
   root.innerHTML = "";
-  document.getElementById("callPrompt").textContent = "场景描述：为什么你们的盈利和现金流分歧如此之大？";
-  const options = [
-    { label: "因为你没上过高级会计课，蠢货。", stock: 5, risk: 10, cls: "warn" },
-    { label: "这是一个复杂的长期资本运作模型。", stock: 0, risk: 2, cls: "good" },
+  const prompt = document.getElementById("callPrompt");
+  if (prompt) {
+    prompt.textContent = "分析师刻薄提问：CFO 先生，除了这些精美的幻灯片，你们真的有在卖天然气吗？";
+  }
+  const opts = [
+    { label: "狂妄回应：我们是能源界的微软。", ok: true },
+    { label: "黑话回应：我们正在重塑价值曲线。", ok: true },
+    { label: "诚实回应：增长确实放缓。", ok: false },
   ];
-  options.forEach((opt) => {
+  opts.forEach((opt) => {
     const btn = document.createElement("button");
     btn.className = "choice-btn";
-    btn.textContent = `${opt.label}（股价 ${opt.stock >= 0 ? "+" : ""}${opt.stock} / 风险 +${opt.risk}）`;
-    btn.disabled = state.callDone;
+    btn.textContent = opt.label;
     btn.onclick = () => {
       if (state.callDone) return;
-      state.stock += opt.stock;
-      applyRiskPressure(opt.risk);
       state.callDone = true;
-      state.lastCallSummary = opt.label.includes("蠢货") ? "q-attack" : "q-jargon";
-      state.historyLog.push(`会议：${state.lastCallSummary}`);
-      const tw = document.getElementById("twitterFeed");
-      if (tw) { const li = document.createElement("li"); li.textContent = opt.stock > 0 ? "#CNBC: 他把分析师骂了，但市场居然买账。" : "#MarketWatch: 全是术语，没人回答现金流。"; tw.prepend(li); }
-      const line = document.getElementById("callChartLine");
-      if (line) { const w = Math.max(8, Math.min(96, 50 + state.stock * 0.2)); line.style.width = `${w}%`; line.style.background = opt.stock > 0 ? "linear-gradient(90deg,#64f0a5,#a5ffda)" : "linear-gradient(90deg,#ff6a6a,#ffb0b0)"; }
-      feed(`你在会上回应：${opt.label}`, opt.cls);
+      if (opt.ok) {
+        state.stock *= 1.06;
+        state.secAttention += 5;
+        state.shareholderPressure = Math.max(0, state.shareholderPressure - 30);
+        feed("分析师评价：天才！安然是能源界的微软！", "warn");
+      } else {
+        state.stock *= 0.78;
+        state.shareholderPressure = 100;
+        state.firedByBoard = true;
+        feed("分析师评价：失望。安然正在变成一家无聊的传统公司。", "bad");
+      }
+      state.lastCallSummary = opt.ok ? "狂妄回应" : "诚实回应";
       render();
     };
     root.appendChild(btn);
@@ -1185,6 +1076,10 @@ function runLobbying(tier) {
 }
 
 function openLobbyingModal() {
+  if (!state.isLobbyUnlocked) {
+    feed("Lobby 尚未解锁：风险超过 70 后可使用。", "warn");
+    return;
+  }
   if (state.lobbyingUsedThisQuarter) return;
   const modal = document.getElementById("lobbyingModal");
   const root = document.getElementById("lobbyingChoices");
@@ -1231,7 +1126,7 @@ function handleCashCrisisIfNeeded(onDone) {
       },
     },
     {
-      label: "通过 SPE 过桥融资（历史原型：表外结构融资）｜现金 +$180M / 风险 +12",
+      label: "通过 Chewco 过桥融资（历史原型：表外结构融资）｜现金 +$180M / 风险 +12",
       apply: () => {
         state.realCash += 180;
         state.debt += 160;
@@ -1256,7 +1151,8 @@ function handleCashCrisisIfNeeded(onDone) {
     },
   ];
 
-  options.forEach((opt) => {
+  const gatedOptions = options.filter((_, i) => i !== 1 || state.isChewcoUnlocked);
+  gatedOptions.forEach((opt) => {
     const btn = document.createElement("button");
     btn.className = "choice-btn";
     btn.textContent = opt.label;
@@ -1323,7 +1219,10 @@ function settleQuarterPostFinance() {
   clampInvestigation();
   document.getElementById("report").textContent = generateReportText();
 
-  state.boardPatience = Math.max(0, state.boardPatience - GAME_CONFIG.boardQuarterDecay + (state.lastActionSummary === "事件驱动增长" ? 6 : 0));
+  const growthRate = (state.stock - preStock) / Math.max(1, preStock) * 100;
+  state.shareholderPressure = Math.min(100, Math.max(0, state.shareholderPressure + (growthRate < 10 ? 12 : -10)));
+  if (state.mtmRatio > 0) state.risk += (state.mtmRatio / 100) * 8;
+  state.boardPatience = Math.max(0, 100 - state.shareholderPressure);
   state.stockDropStreak = state.stock < preStock ? state.stockDropStreak + 1 : 0;
   if (state.stockDropStreak >= 2 && state.stock <= 26) {
     state.firedByBoard = true;
@@ -1339,7 +1238,7 @@ function settleQuarterPostFinance() {
     }
   }
   emitHook("afterQuarterSettle", { quarter: state.quarter });
-  if (state.boardPatience <= 0) {
+  if (state.shareholderPressure >= 100 || state.boardPatience <= 0) {
     state.firedByBoard = true;
     endGame();
     return;
@@ -1362,6 +1261,7 @@ function settleQuarterPostFinance() {
   state.ap = state.maxAp;
   state.monthInQuarter = 1;
   state.forcedWarRoomThisQuarter = false;
+  if (state.quarter >= 9) state.isAuditUnlocked = true;
   emitHook("beforeQuarterStart", { quarter: state.quarter });
   feed("[季度财务快报] 华尔街为我们的‘成长’欢呼，尽管你的金库已经空得能听到回声。", "warn");
   render();
@@ -1400,9 +1300,13 @@ function checkTemptationTriggers() {
   modal.classList.remove("hidden");
 }
 
-function settleQuarter() {
+function progressQuarter() {
   if (state.ap > 0) feed("你提前发布了季报：华尔街喜欢速度，不喜欢真相。", "warn");
   resolveQuarterRandomEvent(settleQuarterCore);
+}
+
+function settleQuarter() {
+  progressQuarter();
 }
 
 function endGame() {
@@ -1512,6 +1416,12 @@ function loadGame() {
     state.ap = typeof data.ap === "number" ? data.ap : state.maxAp;
     state.monthInQuarter = data.monthInQuarter || 1;
     state.forcedWarRoomThisQuarter = !!data.forcedWarRoomThisQuarter;
+    state.shareholderPressure = typeof data.shareholderPressure === "number" ? data.shareholderPressure : 50;
+    state.isMTMUnlocked = !!data.isMTMUnlocked;
+    state.isAuditUnlocked = !!data.isAuditUnlocked;
+    state.isLobbyUnlocked = !!data.isLobbyUnlocked;
+    state.isChewcoUnlocked = !!data.isChewcoUnlocked;
+    state.mtmRatio = data.mtmRatio || 0;
   } catch (_) {
     localStorage.removeItem(GAME_CONFIG.saveKey);
   }
@@ -1542,9 +1452,10 @@ window.gameApi = {
 function doRoutineCheckin() {
   if (state.actionDone) return;
   if (!spendAP(1, "平庸的日常")) return;
-  state.realCash += 18;
+  state.realCash *= 1.05;
+  state.stock *= 1.02;
   state.paperGain += 5;
-  state.boardPatience = Math.max(0, state.boardPatience - 15);
+  state.shareholderPressure = Math.min(100, state.shareholderPressure + 10);
   state.consecutiveNormalOps += 1;
   state.lastActionSummary = "日常打卡";
   state.actionDone = true;
