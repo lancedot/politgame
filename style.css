@@ -215,3 +215,7 @@ body.scene-warroom #ledgerPanel, body.scene-stage #ledgerPanel{display:none;}
 .overlay.ending-fail .ending-card{background:#060606;border-color:#8a6a34;color:#f1d9a0;}
 .overlay.ending-success #endingDesc::after{content:"\A✈ 开曼群岛机票已出票。";white-space:pre;color:#d7bf7a;}
 .overlay.ending-fail #endingDesc::after{content:"\A🧾 一张破碎的支票躺在地上。";white-space:pre;color:#b89452;}
+
+.phase-tabs{display:flex;gap:6px;margin-bottom:8px;}
+.phase-tab{margin-top:0;padding:4px 8px;font-size:.78rem;background:#10263f;}
+.phase-tab.active{border-color:#6ea8ff;box-shadow:inset 0 0 0 1px #6ea8ff;}

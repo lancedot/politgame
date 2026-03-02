@@ -36,6 +36,11 @@
   <main class="layout">
     <section class="panel" id="phasePanel">
       <h2>季度战情</h2>
+      <div class="phase-tabs" id="phaseTabs">
+        <button class="phase-tab active" data-tab="overview">战情总览</button>
+        <button class="phase-tab" data-tab="rules">行动规则</button>
+        <button class="phase-tab" data-tab="publish">发布季报</button>
+      </div>
       <p id="phaseInfo"></p>
       <p id="phaseDesc"></p>
       <p id="forecastCompare" class="small"></p>
@@ -164,7 +169,7 @@
       <p id="endingDesc"></p>
       <div id="endingDebrief"></div>
       <p id="endingScore"></p>
-      <button onclick="location.reload()">重新召开季度会议</button>
+      <button id="restartGameBtn">重新召开季度会议</button>
     </div>
   </div>
 

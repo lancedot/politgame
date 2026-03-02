@@ -101,6 +101,7 @@ const state = {
   isLobbyUnlocked: false,
   isChewcoUnlocked: false,
   mtmRatio: 0,
+  phaseTab: "overview",
 };
 
 const quarterConfig = {
@@ -544,7 +545,17 @@ function renderMetrics() {
 }
 
 function renderTimeline() {
-  const t = timelineData[state.quarter] || timelineData[getRotatingKey(timelineData, state.quarter)];
+  const keys = Object.keys(timelineData).map(Number).sort((a, b) => a - b);
+  const unlocked = keys.filter((k) => k <= state.quarter);
+  if (!unlocked.length) {
+    document.getElementById("timelineYear").textContent = "历史区间：尚未解锁";
+    document.getElementById("timelineEvent").textContent = "历史事件对照将在季度推进后解锁。";
+    document.getElementById("timelinePeople").textContent = "关键人物：-";
+    document.getElementById("timelineImpact").textContent = "历史后果：-";
+    return;
+  }
+  const key = unlocked[unlocked.length - 1];
+  const t = timelineData[key];
   document.getElementById("timelineYear").textContent = `历史区间：${t.year}`;
   document.getElementById("timelineEvent").textContent = t.event;
   document.getElementById("timelinePeople").textContent = `关键人物：${t.people}`;
@@ -646,13 +657,43 @@ function getQuarterConfig(q) {
   };
 }
 
-function renderQuarterStatus() {
-  const q = getQuarterConfig(state.quarter);
+
+function wirePhaseTabs() {
+  document.querySelectorAll('.phase-tab').forEach((btn) => {
+    btn.onclick = () => {
+      state.phaseTab = btn.getAttribute('data-tab') || 'overview';
+      renderQuarterStatus();
+    };
+  });
+}
+
+function applyPhaseTabView(q) {
+  const tab = state.phaseTab || 'overview';
+  document.querySelectorAll('.phase-tab').forEach((btn) => {
+    btn.classList.toggle('active', btn.getAttribute('data-tab') === tab);
+  });
+  if (tab === 'rules') {
+    document.getElementById("phaseInfo").textContent = "行动规则（统一）";
+    document.getElementById("phaseDesc").textContent = "每季度 AP=2。执行动作会消耗 AP；AP 用尽或主动发布季报后进入结算。";
+    document.getElementById("operationHint").textContent = "阶段化解锁：Q1-Q3 基础、Q4-Q8 War Room、Q9-Q12 全链路。";
+    return;
+  }
+  if (tab === 'publish') {
+    document.getElementById("phaseInfo").textContent = "发布季报（独立入口）";
+    document.getElementById("phaseDesc").textContent = "点击【向华尔街撒谎】进入季度结算：扣利息、结算风险、更新股东压力。";
+    document.getElementById("operationHint").textContent = `当前可随时发布；本季度 AP ${state.ap}/${state.maxAp}。`;
+    return;
+  }
   document.getElementById("phaseInfo").textContent = q.name;
   document.getElementById("phaseDesc").textContent = q.desc;
+  document.getElementById("operationHint").textContent = `阶段 ${getGameStage()}/3 · 本季度 AP ${state.ap}/${state.maxAp}。`;
+}
+
+function renderQuarterStatus() {
+  const q = getQuarterConfig(state.quarter);
   document.getElementById("actionIntro").textContent = q.intro;
   const stage = getGameStage();
-  document.getElementById("operationHint").textContent = `阶段 ${stage}/3 · 本季度 AP ${state.ap}/${state.maxAp}。`;
+  applyPhaseTabView(q);
 
   const nextBtn = document.getElementById("nextQuarterBtn");
   nextBtn.disabled = false;
@@ -1422,6 +1463,7 @@ function loadGame() {
     state.isLobbyUnlocked = !!data.isLobbyUnlocked;
     state.isChewcoUnlocked = !!data.isChewcoUnlocked;
     state.mtmRatio = data.mtmRatio || 0;
+    state.phaseTab = data.phaseTab || "overview";
   } catch (_) {
     localStorage.removeItem(GAME_CONFIG.saveKey);
   }
@@ -1474,6 +1516,7 @@ loadGame();
 feed("议程启动：利润可以先到，后果会准时到。", "warn");
 feed("提示：每个选项都给出‘现实后果标签’，请留意 SEC、媒体、吹哨三条线。", "good");
 wireSceneButtons();
+wirePhaseTabs();
 render();
 
 const bootBtn = document.getElementById("bootEnterBtn");
@@ -1482,6 +1525,15 @@ if (bootBtn) {
     state.bootCompleted = true;
     document.getElementById("bootModal")?.classList.add("hidden");
     render();
+  });
+}
+
+
+const restartBtn = document.getElementById("restartGameBtn");
+if (restartBtn) {
+  restartBtn.addEventListener("click", () => {
+    localStorage.removeItem(GAME_CONFIG.saveKey);
+    location.reload();
   });
 }
 
