@@ -90,6 +90,7 @@ const state = {
   prevStock: 78,
   audioCtx: null,
   metricPrev: {},
+  bootCompleted: false,
 };
 
 const quarterConfig = {
@@ -413,7 +414,15 @@ function renderRatings() {
   });
 }
 
+
+function syncBootModalVisibility() {
+  const boot = document.getElementById("bootModal");
+  if (!boot) return;
+  boot.classList.toggle("hidden", state.bootCompleted);
+}
+
 function maybeShowQuarterQuote() {
+  if (!state.bootCompleted) return;
   if (state.quoteShownForQuarter === state.quarter) return;
   const quoteKey = getRotatingKey(quarterQuotes, state.quarter);
   const quotes = quarterQuotes[quoteKey] || quarterQuotes[1];
@@ -1444,6 +1453,7 @@ function render() {
   renderTicker();
   shakeStockMetric();
   updateDangerEffects();
+  syncBootModalVisibility();
   maybeShowQuarterQuote();
   saveGame();
 }
@@ -1515,7 +1525,9 @@ render();
 const bootBtn = document.getElementById("bootEnterBtn");
 if (bootBtn) {
   bootBtn.addEventListener("click", () => {
+    state.bootCompleted = true;
     document.getElementById("bootModal")?.classList.add("hidden");
+    render();
   });
 }
 
