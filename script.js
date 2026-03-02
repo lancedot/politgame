@@ -601,23 +601,33 @@ function renderQuarterStatus() {
     ? "流程完成：可发布财报。若要变现，现在就是最‘合理合规’的时间窗口。"
     : "请完成【核心任务】→【审计沟通】→【分析师会议】三步。";
 
-  document.getElementById("nextQuarterBtn").disabled = !(state.actionDone && state.auditDone && state.callDone);
+  const canSettle = state.actionDone && state.auditDone && state.callDone;
+  const nextBtn = document.getElementById("nextQuarterBtn");
+  nextBtn.disabled = !canSettle;
+  nextBtn.style.display = canSettle ? "" : "none";
   if (!state.actionDone) setActiveScene("desk"); else if (!state.auditDone) setActiveScene("warroom"); else if (!state.callDone) setActiveScene("stage");
   document.getElementById("nextQuarterBtn").textContent = content.buttons?.nextQuarter || "[发布季度财报]";
-  document.getElementById("exerciseBtn").disabled = state.exercisedThisQuarter || state.personalOptions <= 0;
-  document.getElementById("exerciseBtn").textContent = content.buttons?.exercise || "[紧急处置个人期权]";
+  const exerciseBtn = document.getElementById("exerciseBtn");
+  const canExercise = !(state.exercisedThisQuarter || state.personalOptions <= 0);
+  exerciseBtn.disabled = !canExercise;
+  exerciseBtn.style.display = canExercise ? "" : "none";
+  exerciseBtn.textContent = content.buttons?.exercise || "[紧急处置个人期权]";
   const routineBtn = document.getElementById("routineBtn");
-  if (routineBtn) routineBtn.disabled = state.actionDone;
+  if (routineBtn) {
+    routineBtn.disabled = state.actionDone;
+    routineBtn.style.display = state.actionDone ? "none" : "";
+  }
 }
 
-function renderTermButtons(keys) {
+function renderTermButtons(keys = []) {
+  if (!keys.length) return "";
   return `
     <div class="term-box">
-      <p class="small">术语速查：</p>
+      <p class="small">术语速查（悬停/点击查看）：</p>
       <div class="choices">
         ${keys.map((k) => `<button class="choice-btn term-btn" data-term="${k}" title="${glossary[k].full}">${k} ⓘ（${glossary[k].short}）</button>`).join("")}
       </div>
-      <p class="small" id="termExplain"></p>
+      <p class="small term-explain"></p>
     </div>
   `;
 }
@@ -628,10 +638,15 @@ function renderImpact(title, lines) {
 
 function wireGlossary() {
   document.querySelectorAll("[data-term]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const key = btn.getAttribute("data-term");
-      document.getElementById("termExplain").textContent = glossary[key].full;
-    });
+    const key = btn.getAttribute("data-term");
+    const reveal = () => {
+      const box = btn.closest(".term-box");
+      const target = box ? box.querySelector(".term-explain") : null;
+      if (!target) return;
+      target.textContent = glossary[key].full;
+    };
+    btn.onclick = reveal;
+    btn.onmouseenter = reveal;
   });
 }
 
@@ -1301,6 +1316,7 @@ function checkTemptationTriggers() {
   const conditionA = dissatisfaction > 70;
   const conditionB = state.stockDropStreak >= 2;
   const conditionC = state.realCash < nextSpeInterest;
+  if (state.quarter < 3) return;
   if (!(conditionA || conditionB || conditionC)) return;
   setActiveScene("warroom");
   const modal = document.getElementById("mtmPopup");
