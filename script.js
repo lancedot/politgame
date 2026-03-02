@@ -1,5 +1,11 @@
 const content = window.GAME_CONTENT || {};
 
+window.startTerminal = function startTerminal() {
+  state.bootCompleted = true;
+  document.getElementById("bootModal")?.classList.add("hidden");
+  render();
+};
+
 const GAME_CONFIG = {
   maxQuarter: 12,
   riskDangerLine: 80,
@@ -1521,11 +1527,7 @@ render();
 
 const bootBtn = document.getElementById("bootEnterBtn");
 if (bootBtn) {
-  bootBtn.addEventListener("click", () => {
-    state.bootCompleted = true;
-    document.getElementById("bootModal")?.classList.add("hidden");
-    render();
-  });
+  bootBtn.addEventListener("click", window.startTerminal);
 }
 
 
