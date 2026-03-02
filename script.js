@@ -291,15 +291,15 @@ const analystOptionBank = {
 const glossary = {
   MTM: {
     short: "MTM：未来利润先记今天。",
-    full: "MTM（Mark-to-Market，逐日盯市）：按模型估值提前确认远期收益，会放大利润波动并提高后续兑现压力。",
+    full: "把明天的饼，现在就吃掉。如果明天没饼了？那就再画一个更大的。",
   },
   SPE: {
     short: "SPE：把债务放到‘表外房间’。",
-    full: "SPE（特殊目的实体）：用于承接主公司资产/负债。若担保与主公司股价强绑定，风险会在下跌时回流。",
+    full: "这就是公司报表上的‘黑洞’。把坏消息丢进去，连光都逃不出来，更别说审计师了。",
   },
   "旋转门": {
     short: "旋转门：监督者变同事。",
-    full: "审计、监管与被监督企业之间频繁流动，削弱独立性，形成利益共同体。",
+    full: "今天他是查你的监管员，明天他就是你手下年薪百万的副总裁。你猜他今天会写什么报告？",
   },
 };
 
@@ -432,9 +432,9 @@ function setActiveScene(scene) {
     btn.classList.toggle("active", btn.getAttribute("data-scene") === scene);
   });
   const hints = {
-    desk: "办公桌：处理日常经营、现金与邮件压力。",
-    warroom: "小黑会：决定增长叙事与结构化动作。",
-    stage: "大会现场：用话术管理华尔街预期。",
+    desk: "【权力核心：CFO 办公室】处理日常经营、现金与邮件压力。",
+    warroom: "【密室决策：暗箱实验室】决定增长叙事与结构化动作。",
+    stage: "【聚光灯下：华尔街布道】用话术管理华尔街预期。",
   };
   const hint = document.getElementById("sceneHint");
   if (hint) hint.textContent = hints[scene] || "";
@@ -545,7 +545,14 @@ function renderInvestigationPanel() {
   if (state.mediaHeat > 60) hint.push("媒体头条密集跟进");
   if (state.whistleblowerPressure > 58) hint.push("内部吹哨风险升高");
   if (state.auditIndependence < 40) hint.push("审计独立性接近失效");
-  document.getElementById("investigationHint").textContent = hint.length ? `警报：${hint.join("；")}` : "目前尚可控，但‘尚可控’通常是事故前的最后一句话。";
+  const boardLine = state.boardPatience >= 67
+    ? "你是他们的上帝，他们愿意为你买下整条街的香槟。"
+    : state.boardPatience >= 34
+      ? "董事会开始查阅你的午餐账单了，这不是好兆头。"
+      : "HR 已经写好了你的辞退信，除非你现在能变出一亿美金。";
+  document.getElementById("investigationHint").textContent = hint.length
+    ? `警报：${hint.join("；")}｜董事会绞索：${boardLine}`
+    : `董事会绞索：${boardLine}`;
 }
 
 function triggerSpecialEvents() {
@@ -1275,6 +1282,11 @@ function settleQuarterPostFinance() {
 
   state.boardPatience = Math.max(0, state.boardPatience - GAME_CONFIG.boardQuarterDecay + (state.lastActionSummary === "事件驱动增长" ? 6 : 0));
   state.stockDropStreak = state.stock < preStock ? state.stockDropStreak + 1 : 0;
+  if (state.stockDropStreak >= 2 && state.stock <= 26) {
+    state.firedByBoard = true;
+    endGame();
+    return;
+  }
   if (state.boardUltimatum > 0) {
     state.boardUltimatum -= 1;
     if (state.boardUltimatum === 0) {
@@ -1365,7 +1377,10 @@ function endGame() {
     ending = ["A级：体面的流亡者", "虽然背负骂名，但离岸账户的数字足以让你在欧洲过上贵族生活。"];
     state.prisonYears = Math.max(0, Math.min(state.prisonYears, 2));
   } else if (state.firedByBoard) {
-    ending = ["B级：失败的傀儡", "你尝试玩火，但你不够狠。董事会像扔垃圾一样把你踢了出去。"];
+    ending = ["解雇通知书：由于平庸", `亲爱的 CFO：董事会一致认为，你那“诚实”的经营方式更适合去教小学数学，而不是管理一家价值千亿的帝国。你被解雇了。没有离职补偿，没有期权。请在保安陪同下带走你的仙人掌。
+
+结局判定：[等级 B - 被遗忘的庸才]
+“你太害怕坐牢，结果连华尔街的门票都弄丢了。”`];
     state.prisonYears = 0;
   } else {
     ending = ["C级：破产名流", "公司破产重组，你成了财经节目常驻嘉宾：名声很响，资产很薄。"];
@@ -1496,5 +1511,12 @@ feed("议程启动：利润可以先到，后果会准时到。", "warn");
 feed("提示：每个选项都给出‘现实后果标签’，请留意 SEC、媒体、吹哨三条线。", "good");
 wireSceneButtons();
 render();
+
+const bootBtn = document.getElementById("bootEnterBtn");
+if (bootBtn) {
+  bootBtn.addEventListener("click", () => {
+    document.getElementById("bootModal")?.classList.add("hidden");
+  });
+}
 
 setInterval(() => { state.tickerClock += 1; renderTicker(); }, 5000);
