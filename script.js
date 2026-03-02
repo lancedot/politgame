@@ -356,21 +356,13 @@ function applyRiskPressure(baseRisk) {
 
 function updateDangerEffects() {
   const dangerOn = state.risk > GAME_CONFIG.riskDangerLine || state.realCash < 100;
-  document.body.classList.toggle("danger-mode", dangerOn);
-  document.body.classList.toggle("risk-shake", state.risk > GAME_CONFIG.riskDangerLine);
+  document.body.classList.toggle("danger-mode", false);
+  document.body.classList.toggle("risk-shake", false);
   document.body.classList.toggle("cash-negative", state.realCash < 0);
-  if (!dangerOn) return;
-  if (!state.audioCtx) state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  if (state.audioCtx.state === "suspended") state.audioCtx.resume();
-  const osc = state.audioCtx.createOscillator();
-  const gain = state.audioCtx.createGain();
-  osc.type = "sawtooth";
-  osc.frequency.value = 82 + Math.random() * 25;
-  gain.gain.value = 0.004;
-  osc.connect(gain);
-  gain.connect(state.audioCtx.destination);
-  osc.start();
-  osc.stop(state.audioCtx.currentTime + 0.08);
+  if (!dangerOn && state.audioCtx && state.audioCtx.state !== "closed") {
+    state.audioCtx.close();
+    state.audioCtx = null;
+  }
 }
 
 function shakeStockMetric() {
@@ -1212,6 +1204,12 @@ function settleQuarterCore() {
 }
 
 function settleQuarterPostFinance() {
+  if (state.risk >= 120) {
+    feed("SEC 绞索已收紧到临界值，市场在结算前已触发踩踏。", "bad");
+    state.isSettlingQuarter = false;
+    endGame();
+    return;
+  }
   const preStock = state.stock;
   if (state.paperGain < state.marketExpectedGain) {
     const gap = state.marketExpectedGain - state.paperGain;
@@ -1352,7 +1350,7 @@ function endGame() {
 
   let ending;
   let endingGrade = "C";
-  if (state.risk > 120 || (state.secAttention > 98 && state.privateAccount < 260)) {
+  if (state.risk >= 120 || (state.secAttention > 98 && state.privateAccount < 260)) {
     ending = ["F级：联邦监狱的明星", "你将在监狱里教狱警如何通过 SPE 偷走食堂的经费。"];
     endingGrade = "F";
   } else if (state.quarter >= GAME_CONFIG.maxQuarter && state.privateAccount > 500 && state.risk < 60) {
@@ -1371,13 +1369,13 @@ function endGame() {
     endingGrade = "C";
   }
 
-  const failureFlavor = state.risk > 120
+  const failureFlavor = state.risk >= 120
     ? "失败简报：SEC 突击检查了休斯顿总部，碎纸机因为过热而停机了。"
     : state.secAttention > 98
       ? "失败简报：调查在清晨同步落地，你的法务团队先看到了手铐。"
       : "失败简报：卖盘先于公告，市场替检察官写好了起诉提纲。";
 
-  const failureTitle = state.risk > 120
+  const failureTitle = state.risk >= 120
     ? "头衔：世纪大骗子"
     : state.quarter <= 2
       ? "头衔：初级背锅侠"
@@ -1534,6 +1532,14 @@ if (bootBtn) {
 const restartBtn = document.getElementById("restartGameBtn");
 if (restartBtn) {
   restartBtn.addEventListener("click", () => {
+    localStorage.removeItem(GAME_CONFIG.saveKey);
+    location.reload();
+  });
+}
+
+const quickRestartBtn = document.getElementById("quickRestartBtn");
+if (quickRestartBtn) {
+  quickRestartBtn.addEventListener("click", () => {
     localStorage.removeItem(GAME_CONFIG.saveKey);
     location.reload();
   });
