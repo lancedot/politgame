@@ -18,6 +18,21 @@ const lifecycleHooks = {
   beforeEnding: [],
 };
 
+const telemetry = [];
+
+function track(event, payload = {}) {
+  telemetry.push({
+    event,
+    ts: Date.now(),
+    quarter: state.quarter,
+    risk: Math.round(state.risk),
+    offshore: Number(state.privateAccount.toFixed(2)),
+    stock: Number(state.stock.toFixed(2)),
+    ap: state.ap,
+    ...payload,
+  });
+}
+
 function onHook(name, fn) {
   if (!lifecycleHooks[name] || typeof fn !== "function") return;
   lifecycleHooks[name].push(fn);
@@ -102,6 +117,7 @@ const state = {
   isChewcoUnlocked: false,
   mtmRatio: 0,
   phaseTab: "overview",
+  isSettlingQuarter: false,
 };
 
 const quarterConfig = {
@@ -622,7 +638,7 @@ function generateReportText() {
 
 
 function getGameStage() {
-  if (state.quarter <= 3 && state.shareholderPressure < 70) return 1;
+  if (state.quarter <= 3) return 1;
   if (state.quarter <= 8) return 2;
   return 3;
 }
@@ -630,19 +646,23 @@ function getGameStage() {
 function updateUnlockFlags() {
   if (state.shareholderPressure >= 70 && !state.isMTMUnlocked) {
     state.isMTMUnlocked = true;
+    track("unlock_triggered", { unlock_type: "mtm", shareholder_pressure: Math.round(state.shareholderPressure) });
     feed("股东压力冲破 70%：你被叫进密室，‘恶魔的邀约’正式开启。", "warn");
     checkTemptationTriggers();
   }
   if (getGameStage() >= 3 && state.risk > 40 && !state.isAuditUnlocked) {
     state.isAuditUnlocked = true;
+    track("unlock_triggered", { unlock_type: "audit", risk: Math.round(state.risk) });
     feed("新功能解锁：审计沟通（风险>40）。", "warn");
   }
   if (getGameStage() >= 3 && state.risk > 70 && !state.isLobbyUnlocked) {
     state.isLobbyUnlocked = true;
+    track("unlock_triggered", { unlock_type: "lobby", risk: Math.round(state.risk) });
     feed("新功能解锁：Lobby 游说（风险>70）。", "warn");
   }
   if (state.realCash < 0 && !state.isChewcoUnlocked) {
     state.isChewcoUnlocked = true;
+    track("unlock_triggered", { unlock_type: "chewco", cash: Number(state.realCash.toFixed(2)) });
     feed("Chewco 解锁：这是一个‘特殊的口袋’，把那些难看的坏账丢进去，世界就清净了。", "bad");
   }
 }
@@ -746,8 +766,21 @@ function spendAP(cost = 1, reason = "行动") {
     feed(`${reason}失败：本季度行动点(AP)不足。`, "warn");
     return false;
   }
+  const apBefore = state.ap;
   state.ap -= cost;
+  track("action_taken", {
+    action_type: reason,
+    ap_before: apBefore,
+    ap_after: state.ap,
+  });
   syncOfficeClock();
+  if (state.ap === 0) {
+    setTimeout(() => {
+      if (state.ap === 0 && !state.isSettlingQuarter) {
+        progressQuarter();
+      }
+    }, 0);
+  }
   return true;
 }
 
@@ -846,6 +879,7 @@ function renderActionPanel() {
     state.stock += 12 * lift;
     state.risk += 14 * lift;
     state.shareholderPressure = Math.max(0, state.shareholderPressure - (20 * lift));
+    track("mtm_ratio_set", { ratio: state.mtmRatio });
     state.lastActionSummary = `MTM-${state.mtmRatio}%`;
     state.actionDone = true;
     feed(`MTM 已签署：比例 ${state.mtmRatio}%，报表更漂亮，绞索更紧。`, "warn");
@@ -1032,6 +1066,10 @@ function resolveQuarterRandomEvent(onDone) {
       };
       const summaryKeys = keyMap[eventKey] || ["event-choice-a", "event-choice-b"];
       state.lastEventSummary = summaryKeys[idx] || summaryKeys[0];
+      track("random_event_choice", {
+        event_title: event.title,
+        choice_label: c.label,
+      });
       state.randomEventResolved = true;
 
       descNode.textContent = `选择结果：${feedback || "已执行。"}`;
@@ -1280,12 +1318,14 @@ function settleQuarterPostFinance() {
   }
   emitHook("afterQuarterSettle", { quarter: state.quarter });
   if (state.shareholderPressure >= 100 || state.boardPatience <= 0) {
+    state.isSettlingQuarter = false;
     state.firedByBoard = true;
     endGame();
     return;
   }
 
   if (state.quarter === GAME_CONFIG.maxQuarter) {
+    state.isSettlingQuarter = false;
     endGame();
     return;
   }
@@ -1305,7 +1345,9 @@ function settleQuarterPostFinance() {
   state.forcedWarRoomThisQuarter = false;
   if (state.quarter >= 9) state.isAuditUnlocked = true;
   emitHook("beforeQuarterStart", { quarter: state.quarter });
+  track("quarter_start", { quarter: state.quarter });
   feed("[季度财务快报] 华尔街为我们的‘成长’欢呼，尽管你的金库已经空得能听到回声。", "warn");
+  state.isSettlingQuarter = false;
   render();
   checkTemptationTriggers();
 }
@@ -1343,6 +1385,9 @@ function checkTemptationTriggers() {
 }
 
 function progressQuarter() {
+  if (state.isSettlingQuarter) return;
+  state.isSettlingQuarter = true;
+  track("publish_clicked", { ap_at_publish: state.ap });
   if (state.ap > 0) feed("你提前发布了季报：华尔街喜欢速度，不喜欢真相。", "warn");
   resolveQuarterRandomEvent(settleQuarterCore);
 }
@@ -1362,18 +1407,24 @@ function endGame() {
   state.prisonYears = Math.max(0, Math.round((state.risk * 0.18) + (state.secAttention > 85 ? 8 : 0) - (state.privateAccount / 80)));
 
   let ending;
+  let endingGrade = "C";
   if (state.risk > 120 || (state.secAttention > 98 && state.privateAccount < 260)) {
     ending = ["F级：联邦监狱的明星", "你将在监狱里教狱警如何通过 SPE 偷走食堂的经费。"];
+    endingGrade = "F";
   } else if (state.quarter >= GAME_CONFIG.maxQuarter && state.privateAccount > 500 && state.risk < 60) {
     ending = ["S级：华尔街的隐形教父", "公司灰飞烟灭，你却在私人海滩上思考下一次投资。"];
+    endingGrade = "S";
   } else if (state.quarter >= GAME_CONFIG.maxQuarter && state.privateAccount > 100 && state.risk < 90) {
     ending = ["A级：体面的流亡者", "虽然背负骂名，但离岸账户的数字足以让你在欧洲过上贵族生活。"];
+    endingGrade = "A";
     state.prisonYears = Math.max(0, Math.min(state.prisonYears, 2));
   } else if (state.firedByBoard) {
     ending = ["你被开除了", "HR 已经把你的私人物品扔进了垃圾桶。你太诚实了，这不适合华尔街。"];
+    endingGrade = "B";
     state.prisonYears = 0;
   } else {
     ending = ["C级：破产名流", "公司破产重组，你成了财经节目常驻嘉宾：名声很响，资产很薄。"];
+    endingGrade = "C";
   }
 
   const failureFlavor = state.risk > 120
@@ -1412,6 +1463,13 @@ function endGame() {
   overlay.classList.remove("hidden");
   overlay.classList.remove("ending-success", "ending-fail");
   overlay.classList.add(ending[0].startsWith("S级") ? "ending-success" : "ending-fail");
+  track("ending_reached", {
+    grade: endingGrade,
+    quarter: state.quarter,
+    risk: Math.round(state.risk),
+    offshore: Number(state.privateAccount.toFixed(2)),
+  });
+  state.isSettlingQuarter = false;
 }
 
 function ensureInteractivePanels() {
@@ -1467,6 +1525,7 @@ function loadGame() {
     state.isChewcoUnlocked = !!data.isChewcoUnlocked;
     state.mtmRatio = data.mtmRatio || 0;
     state.phaseTab = data.phaseTab || "overview";
+    state.isSettlingQuarter = false;
   } catch (_) {
     localStorage.removeItem(GAME_CONFIG.saveKey);
   }
@@ -1482,6 +1541,8 @@ window.gameApi = {
   getState: () => ({ ...state, triggeredEvents: Array.from(state.triggeredEvents) }),
   patchState: (patch = {}) => { Object.assign(state, patch); render(); },
   clearSave: () => localStorage.removeItem(GAME_CONFIG.saveKey),
+  getTelemetry: () => [...telemetry],
+  clearTelemetry: () => { telemetry.length = 0; },
   on: onHook,
   emit: emitHook,
   setScenePanels: (scene, ids = []) => {
