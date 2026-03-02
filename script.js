@@ -6,7 +6,7 @@ const GAME_CONFIG = {
   boardQuarterDecay: 15,
   saveKey: "enron_save_v2",
   scenePermissions: {
-    desk: ["exerciseBtn", "lobbyingBtn", "routineBtn", "ledgerPanel", "timelinePanel", "investigationPanel"],
+    desk: ["exerciseBtn", "lobbyingBtn", "routineBtn", "ledgerPanel", "investigationPanel"],
     warroom: ["actionPanel", "auditPanel", "reportPanel"],
     stage: ["callPanel", "ratingPanel"],
   },
@@ -28,7 +28,6 @@ function track(event, payload = {}) {
     risk: Math.round(state.risk),
     offshore: Number(state.privateAccount.toFixed(2)),
     stock: Number(state.stock.toFixed(2)),
-    ap: state.ap,
     ...payload,
   });
 }
@@ -46,6 +45,18 @@ function emitHook(name, payload = {}) {
   [...(lifecycleHooks[name] || [])].forEach((fn) => {
     try { fn(payload, state); } catch (e) { console.warn(`[hook:${name}]`, e); }
   });
+}
+
+function showUnlockModal(title, desc) {
+  const modal = document.getElementById("unlockModal");
+  const titleNode = document.getElementById("unlockTitle");
+  const descNode = document.getElementById("unlockDesc");
+  const confirmBtn = document.getElementById("unlockConfirmBtn");
+  if (!modal || !titleNode || !descNode || !confirmBtn) return;
+  titleNode.textContent = title;
+  descNode.textContent = desc;
+  confirmBtn.onclick = () => modal.classList.add("hidden");
+  modal.classList.remove("hidden");
 }
 
 function getRotatingKey(map, q) {
@@ -106,9 +117,6 @@ const state = {
   audioCtx: null,
   metricPrev: {},
   bootCompleted: false,
-  maxAp: 2,
-  ap: 2,
-  monthInQuarter: 1,
   forcedWarRoomThisQuarter: false,
   shareholderPressure: 50,
   isMTMUnlocked: false,
@@ -160,33 +168,6 @@ const quarterQuotes = {
     '“我们对公司前景保持坚定信心。” —— 同日高管减持记录',
     '“司法是长期问题，流动性是今晚问题。” —— 走廊对话（讽刺）',
   ],
-};
-
-const timelineData = {
-  1: {
-    year: "1999-2000",
-    event: "公司全面拥抱 MTM，会计利润与经营现金开始分轨。",
-    people: "Jeff Skilling（增长叙事）、Andrew Fastow（结构设计）",
-    impact: "短期股价抬升，长期增长压力指数级增加。",
-  },
-  2: {
-    year: "2000-2001 上半年",
-    event: "Chewco/LJM 等 SPE 承接烂资产，主表负债率被美化。",
-    people: "Andrew Fastow（双重角色冲突）、Arthur Andersen（审计把关失效）",
-    impact: "报表更干净，但股票担保把风险埋成连锁炸弹。",
-  },
-  3: {
-    year: "2000-2001",
-    event: "加州电力危机中，交易策略被质疑放大供需恐慌。",
-    people: "交易部门、监管机构、做空研究员",
-    impact: "现金短期回流，舆情与监管调查快速升级。",
-  },
-  4: {
-    year: "2001 年末",
-    event: "股价崩塌触发担保连锁，SPE 风险回流，审计底稿销毁争议爆发。",
-    people: "Sherron Watkins（吹哨）、Arthur Andersen（司法后果）",
-    impact: "公司申请破产，管理层与审计机构进入历史审判。",
-  },
 };
 
 const quarterRandomEvents = Object.assign({
@@ -560,24 +541,6 @@ function renderMetrics() {
   motto.textContent = state.morality < 40 ? "沟 通 // 诚? // 尊X // 卓越" : "沟通 · 诚信 · 尊重 · 卓越";
 }
 
-function renderTimeline() {
-  const keys = Object.keys(timelineData).map(Number).sort((a, b) => a - b);
-  const unlocked = keys.filter((k) => k <= state.quarter);
-  if (!unlocked.length) {
-    document.getElementById("timelineYear").textContent = "历史区间：尚未解锁";
-    document.getElementById("timelineEvent").textContent = "历史事件对照将在季度推进后解锁。";
-    document.getElementById("timelinePeople").textContent = "关键人物：-";
-    document.getElementById("timelineImpact").textContent = "历史后果：-";
-    return;
-  }
-  const key = unlocked[unlocked.length - 1];
-  const t = timelineData[key];
-  document.getElementById("timelineYear").textContent = `历史区间：${t.year}`;
-  document.getElementById("timelineEvent").textContent = t.event;
-  document.getElementById("timelinePeople").textContent = `关键人物：${t.people}`;
-  document.getElementById("timelineImpact").textContent = `历史后果：${t.impact}`;
-}
-
 function renderInvestigationPanel() {
   clampInvestigation();
   document.getElementById("secBar").value = state.secAttention;
@@ -647,22 +610,26 @@ function updateUnlockFlags() {
   if (state.shareholderPressure >= 70 && !state.isMTMUnlocked) {
     state.isMTMUnlocked = true;
     track("unlock_triggered", { unlock_type: "mtm", shareholder_pressure: Math.round(state.shareholderPressure) });
+    showUnlockModal("【恶魔的邀约：预支未来】", "把二十年后的饼拿到今天吃掉。至于明天？明天会有更大的饼。");
     feed("股东压力冲破 70%：你被叫进密室，‘恶魔的邀约’正式开启。", "warn");
     checkTemptationTriggers();
   }
   if (getGameStage() >= 3 && state.risk > 40 && !state.isAuditUnlocked) {
     state.isAuditUnlocked = true;
     track("unlock_triggered", { unlock_type: "audit", risk: Math.round(state.risk) });
+    showUnlockModal("审计沟通解锁", "风险超过 40，审计团队要求你解释结构。每一次沟通都可能改变监管走向。");
     feed("新功能解锁：审计沟通（风险>40）。", "warn");
   }
   if (getGameStage() >= 3 && state.risk > 70 && !state.isLobbyUnlocked) {
     state.isLobbyUnlocked = true;
     track("unlock_triggered", { unlock_type: "lobby", risk: Math.round(state.risk) });
+    showUnlockModal("Lobby 解锁", "只要支票足够厚，监管者的眼睛就可以暂时性失明。你现在可以启动游说。 ");
     feed("新功能解锁：Lobby 游说（风险>70）。", "warn");
   }
   if (state.realCash < 0 && !state.isChewcoUnlocked) {
     state.isChewcoUnlocked = true;
     track("unlock_triggered", { unlock_type: "chewco", cash: Number(state.realCash.toFixed(2)) });
+    showUnlockModal("Chewco 解锁", "这是一个‘特殊的口袋’，把那些难看的坏账丢进去，世界就清净了。 ");
     feed("Chewco 解锁：这是一个‘特殊的口袋’，把那些难看的坏账丢进去，世界就清净了。", "bad");
   }
 }
@@ -694,19 +661,19 @@ function applyPhaseTabView(q) {
   });
   if (tab === 'rules') {
     document.getElementById("phaseInfo").textContent = "行动规则（统一）";
-    document.getElementById("phaseDesc").textContent = "每季度 AP=2。执行动作会消耗 AP；AP 用尽或主动发布季报后进入结算。";
+    document.getElementById("phaseDesc").textContent = "每季度可执行一个核心经营动作，并可在任意时点主动发布季报进入结算。";
     document.getElementById("operationHint").textContent = "阶段化解锁：Q1-Q3 基础、Q4-Q8 War Room、Q9-Q12 全链路。";
     return;
   }
   if (tab === 'publish') {
     document.getElementById("phaseInfo").textContent = "发布季报（独立入口）";
     document.getElementById("phaseDesc").textContent = "点击【向华尔街撒谎】进入季度结算：扣利息、结算风险、更新股东压力。";
-    document.getElementById("operationHint").textContent = `当前可随时发布；本季度 AP ${state.ap}/${state.maxAp}。`;
+    document.getElementById("operationHint").textContent = "当前可随时发布季报；若已执行核心经营动作，建议立即结算。";
     return;
   }
   document.getElementById("phaseInfo").textContent = q.name;
   document.getElementById("phaseDesc").textContent = q.desc;
-  document.getElementById("operationHint").textContent = `阶段 ${getGameStage()}/3 · 本季度 AP ${state.ap}/${state.maxAp}。`;
+  document.getElementById("operationHint").textContent = `阶段 ${getGameStage()}/3 · 本季度核心动作：${state.actionDone ? "已执行" : "未执行"}。`;
 }
 
 function renderQuarterStatus() {
@@ -718,7 +685,7 @@ function renderQuarterStatus() {
   const nextBtn = document.getElementById("nextQuarterBtn");
   nextBtn.disabled = false;
   nextBtn.style.display = "";
-  nextBtn.title = state.ap > 0 ? "可提前发布，或继续行动直至 AP=0" : "AP 已用尽，建议立刻发布";
+  nextBtn.title = "可随时发布季报进入季度结算。";
   if (state.shareholderPressure >= 70 && !state.forcedWarRoomThisQuarter) {
     state.forcedWarRoomThisQuarter = true;
     checkTemptationTriggers();
@@ -742,8 +709,8 @@ function renderQuarterStatus() {
   exerciseBtn.textContent = "[内幕变现]";
   const routineBtn = document.getElementById("routineBtn");
   if (routineBtn) {
-    routineBtn.disabled = state.ap <= 0;
-    routineBtn.style.display = state.ap <= 0 ? "none" : "";
+    routineBtn.disabled = state.actionDone;
+    routineBtn.style.display = state.actionDone ? "none" : "";
     routineBtn.textContent = "[平庸的日常 (Honest Grinding)]";
   }
   const lobbyBtn = document.getElementById("lobbyingBtn");
@@ -754,33 +721,13 @@ function renderQuarterStatus() {
 }
 
 
-function syncOfficeClock() {
-  state.monthInQuarter = Math.max(1, Math.min(3, state.maxAp - state.ap + 1));
-  const clock = document.getElementById("officeClock");
-  if (!clock) return;
-  clock.textContent = `季度内时间：第 ${state.monthInQuarter} 月`;
-}
-
-function spendAP(cost = 1, reason = "行动") {
-  if (state.ap < cost) {
-    feed(`${reason}失败：本季度行动点(AP)不足。`, "warn");
+function spendAction(reason = "行动") {
+  if (state.actionDone) {
+    feed(`${reason}失败：本季度核心经营动作已执行。`, "warn");
     return false;
   }
-  const apBefore = state.ap;
-  state.ap -= cost;
-  track("action_taken", {
-    action_type: reason,
-    ap_before: apBefore,
-    ap_after: state.ap,
-  });
-  syncOfficeClock();
-  if (state.ap === 0) {
-    setTimeout(() => {
-      if (state.ap === 0 && !state.isSettlingQuarter) {
-        progressQuarter();
-      }
-    }, 0);
-  }
+  track("action_taken", { action_type: reason });
+  state.actionDone = true;
   return true;
 }
 
@@ -832,7 +779,7 @@ function renderActionPanel() {
       const b = document.getElementById(id);
       if (!b) return;
       b.onclick = () => {
-        if (!spendAP(1, "经营决策")) return;
+        if (!spendAction("经营决策")) return;
         fn();
         state.actionDone = true;
         render();
@@ -871,7 +818,7 @@ function renderActionPanel() {
   const btn = document.getElementById("mtmApplyBtn");
   if (!slider || !btn) return;
   btn.onclick = () => {
-    if (!spendAP(1, "MTM 决策")) return;
+    if (!spendAction("MTM 决策")) return;
     state.mtmRatio = Number(slider.value);
     state.isMTMUnlocked = true;
     const lift = state.mtmRatio / 100;
@@ -1091,7 +1038,7 @@ function resolveQuarterRandomEvent(onDone) {
 
 function exerciseOptions() {
   if (state.exercisedThisQuarter || state.personalOptions <= 0) return;
-  if (!spendAP(1, "内幕变现")) return;
+  if (!spendAction("内幕变现")) return;
   const units = Math.min(12, state.personalOptions);
   const grossProceeds = units * state.stock * 0.02;
   const liquidityCap = Math.max(6, state.realCash * 0.18);
@@ -1118,7 +1065,7 @@ function exerciseOptions() {
 
 function runLobbying(tier) {
   if (state.lobbyingUsedThisQuarter) return;
-  if (!spendAP(1, "处理游说")) return;
+  if (!spendAction("处理游说")) return;
   const cfg = {
     light: { cash: 80, riskPct: 0.08, secCut: 2, mediaCut: 7, text: "轻度游说" },
     mid: { cash: 150, riskPct: 0.15, secCut: 5, mediaCut: 4, text: "中度游说" },
@@ -1339,9 +1286,6 @@ function settleQuarterPostFinance() {
   state.lobbyingUsedThisQuarter = false;
   state.tipShredBoost = false;
   state.riskGrowthFactor = 1;
-  state.ap = state.maxAp;
-  state.monthInQuarter = 1;
-  syncOfficeClock();
   state.forcedWarRoomThisQuarter = false;
   if (state.quarter >= 9) state.isAuditUnlocked = true;
   emitHook("beforeQuarterStart", { quarter: state.quarter });
@@ -1358,7 +1302,7 @@ function checkTemptationTriggers() {
   const conditionA = dissatisfaction > 70;
   const conditionB = state.stockDropStreak >= 2;
   const conditionC = state.realCash < nextSpeInterest;
-  if (state.quarter < 3) return;
+  if (state.quarter < 4) return;
   if (!(conditionA || conditionB || conditionC || state.boardPatience < 30)) return;
   setActiveScene("warroom");
   const modal = document.getElementById("mtmPopup");
@@ -1387,8 +1331,8 @@ function checkTemptationTriggers() {
 function progressQuarter() {
   if (state.isSettlingQuarter) return;
   state.isSettlingQuarter = true;
-  track("publish_clicked", { ap_at_publish: state.ap });
-  if (state.ap > 0) feed("你提前发布了季报：华尔街喜欢速度，不喜欢真相。", "warn");
+  track("publish_clicked", { action_done: state.actionDone });
+  if (!state.actionDone) feed("你提前发布了季报：华尔街喜欢速度，不喜欢真相。", "warn");
   resolveQuarterRandomEvent(settleQuarterCore);
 }
 
@@ -1483,7 +1427,6 @@ function render() {
   renderMetrics();
   renderRatings();
   renderQuarterStatus();
-  renderTimeline();
   renderInvestigationPanel();
   renderActionPanel();
   ensureInteractivePanels();
@@ -1495,7 +1438,6 @@ function render() {
   shakeStockMetric();
   updateDangerEffects();
   syncBootModalVisibility();
-  syncOfficeClock();
   maybeShowQuarterQuote();
   saveGame();
 }
@@ -1512,10 +1454,6 @@ function loadGame() {
     const data = JSON.parse(raw);
     Object.assign(state, data);
     state.triggeredEvents = new Set(data.triggeredEvents || []);
-    state.maxAp = data.maxAp || 2;
-    state.ap = typeof data.ap === "number" ? data.ap : state.maxAp;
-    state.ap = Math.max(0, Math.min(state.maxAp, state.ap));
-    state.monthInQuarter = data.monthInQuarter || 1;
     state.quarter = Math.max(1, Math.min(GAME_CONFIG.maxQuarter, Number(state.quarter) || 1));
     state.forcedWarRoomThisQuarter = !!data.forcedWarRoomThisQuarter;
     state.shareholderPressure = typeof data.shareholderPressure === "number" ? data.shareholderPressure : 50;
@@ -1557,7 +1495,7 @@ window.gameApi = {
 
 function doRoutineCheckin() {
   if (state.actionDone) return;
-  if (!spendAP(1, "平庸的日常")) return;
+  if (!spendAction("平庸的日常")) return;
   state.realCash *= 1.05;
   state.stock *= 1.02;
   state.paperGain += 5;

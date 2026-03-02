@@ -20,7 +20,6 @@
 
   <section class="metrics" id="metrics"></section>
   <section class="motto" id="motto">沟通 · 诚信 · 尊重 · 卓越</section>
-  <section class="office-clock" id="officeClock">季度内时间：第 1 月</section>
 
   <section class="scene-nav panel" id="sceneNav">
     <h2>办公场景</h2>
@@ -47,7 +46,7 @@
       <p id="operationHint" class="small"></p>
       <p id="optionInfo" class="small"></p>
       <button id="exerciseBtn">[紧急处置个人期权]</button>
-      <button id="lobbyingBtn">公关与游说</button>
+      <button id="lobbyingBtn" style="display:none">公关与游说</button>
       <button id="routineBtn">[日常业务打卡]</button>
       <button id="nextQuarterBtn">[发布季度财报]</button>
     </section>
@@ -55,14 +54,6 @@
     <section class="panel" id="ledgerPanel">
       <h2>内部账本（仅办公室）</h2>
       <p id="ledgerInfo" class="small"></p>
-    </section>
-
-    <section class="panel" id="timelinePanel">
-      <h2>历史时间轴对照</h2>
-      <p id="timelineYear" class="small"></p>
-      <p id="timelineEvent"></p>
-      <p id="timelinePeople" class="small"></p>
-      <p id="timelineImpact" class="small"></p>
     </section>
 
     <section class="panel" id="investigationPanel">
@@ -139,6 +130,16 @@
       <h2>公关与游说</h2>
       <p id="lobbyingDesc">选择本季度游说强度。</p>
       <div class="choices" id="lobbyingChoices"></div>
+    </div>
+  </div>
+
+  <div class="overlay hidden" id="unlockModal">
+    <div class="ending-card">
+      <h2 id="unlockTitle">功能解锁</h2>
+      <p id="unlockDesc"></p>
+      <div class="choices">
+        <button class="choice-btn" id="unlockConfirmBtn">明白了，继续</button>
+      </div>
     </div>
   </div>
 
