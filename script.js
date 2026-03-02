@@ -47,6 +47,7 @@ const state = {
   totalAssets: 1400,
   prevStock: 78,
   audioCtx: null,
+  metricPrev: {},
 };
 
 const quarterConfig = {
@@ -151,6 +152,23 @@ const quarterRandomEvents = {
       { label: "B. 牺牲一位高管止血（结果：股价 -2，风险 -3，SEC -2）", effect: (st) => { st.stock -= 2; st.risk = Math.max(0, st.risk - 3); st.secAttention = Math.max(0, st.secAttention - 2); const msg = "替罪羊出列，风暴短暂停顿，董事会掌声稀稀拉拉。"; feed(msg, "warn"); return msg; } },
     ],
   },
+  6: {
+    title: "季度突发：宽带泡沫",
+    desc: "光纤里跑的不是数据，是华尔街的口水。是否签下虚假合同？",
+    choices: [
+      { label: "A. 签下虚假宽带大单（结果：股价 +20，债务 +300，风险 +18）", effect: (st) => { st.stock += 20; st.debt += 300; st.paperGain += 180; st.risk += 18; st.secAttention += 6; const msg = "路演掌声如潮，但合同回款条款只有脚注看得懂。"; feed(msg, "warn"); return msg; } },
+      { label: "B. 拒绝吹泡泡（结果：股价 -5，风险 -2，董事会不满 +12）", effect: (st) => { st.stock -= 5; st.risk = Math.max(0, st.risk - 2); st.boardPatience = Math.max(0, st.boardPatience - 12); const msg = "你守住底线，董事会却在问‘隔壁为什么涨更快’。"; feed(msg, "good"); return msg; } },
+    ],
+  },
+  9: {
+    title: "季度突发：安达信旋转门",
+    desc: "那个审计员挺聪明，给他个 VP 当当，他就会忘了那笔坏账。",
+    choices: [
+      { label: "A. 立即挖角（结果：风险 -30，现金 -100，SEC +4）", effect: (st) => { st.risk = Math.max(0, st.risk - 30); st.realCash -= 100; st.secAttention += 4; st.rotationDoorShield = true; const msg = "人事公告发布后，审计脚注立刻变得温柔。"; feed(msg, "warn"); return msg; } },
+      { label: "B. 保持距离（结果：风险 +6，现金 0，审计独立性 +8）", effect: (st) => { st.risk += 6; st.auditIndependence = Math.min(100, st.auditIndependence + 8); const msg = "你选择合规，短期日子更难，长期睡眠更好。"; feed(msg, "good"); return msg; } },
+    ],
+  },
+
 };
 
 const quarterTickerBase = {
@@ -279,7 +297,7 @@ function bumpCorruption(level) {
 }
 
 function applyRiskPressure(baseRisk) {
-  const leverage = Math.max(0, state.debt / Math.max(1, state.totalAssets));
+  const leverage = Math.max(0, state.debt / Math.max(1, Math.max(1, state.realCash)));
   const amplified = baseRisk * (1 + leverage) * state.riskGrowthFactor;
   state.risk += amplified;
   return amplified;
@@ -288,6 +306,8 @@ function applyRiskPressure(baseRisk) {
 function updateDangerEffects() {
   const dangerOn = state.risk > 80 || state.realCash < 100;
   document.body.classList.toggle("danger-mode", dangerOn);
+  document.body.classList.toggle("risk-shake", state.risk > 80);
+  document.body.classList.toggle("cash-negative", state.realCash < 0);
   if (!dangerOn) return;
   if (!state.audioCtx) state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   if (state.audioCtx.state === "suspended") state.audioCtx.resume();
@@ -364,7 +384,7 @@ function maybeShowQuarterQuote() {
 
 function setActiveScene(scene) {
   state.activeScene = scene;
-  document.body.classList.remove("scene-desk", "scene-warroom", "scene-stage", "scene-cellar");
+  document.body.classList.remove("scene-desk", "scene-warroom", "scene-stage");
   document.body.classList.add(`scene-${scene}`);
   document.querySelectorAll(".scene-btn").forEach((btn) => {
     btn.classList.toggle("active", btn.getAttribute("data-scene") === scene);
@@ -373,7 +393,6 @@ function setActiveScene(scene) {
     desk: "办公桌：处理日常经营、现金与邮件压力。",
     warroom: "小黑会：决定增长叙事与结构化动作。",
     stage: "大会现场：用话术管理华尔街预期。",
-    cellar: "碎纸机房：游说、文件策略与危机处理。",
   };
   const hint = document.getElementById("sceneHint");
   if (hint) hint.textContent = hints[scene] || "";
@@ -386,18 +405,38 @@ function wireSceneButtons() {
   setActiveScene(state.activeScene);
 }
 
+function animateNumber(el, from, to, formatter) {
+  const start = performance.now();
+  const dur = 320;
+  const run = (t) => {
+    const p = Math.min(1, (t - start) / dur);
+    const v = from + (to - from) * p;
+    el.textContent = formatter(v);
+    if (p < 1) requestAnimationFrame(run);
+  };
+  requestAnimationFrame(run);
+}
+
 function renderMetrics() {
   updateMarketDerived();
-  const list = [
-    ["Stock 股价", `$${state.stock.toFixed(1)}`],
-    ["Real Cash 现金流", formatMoney(state.realCash)],
-    ["Suspicion 怀疑度", `${Math.round(state.risk)} / 120`],
-    ["Board Patience 董事会耐心", `${Math.round(state.boardPatience)} / 100`],
+  const metrics = [
+    { key: "stock", label: "Stock 股价", value: state.stock, fmt: (v) => `$${v.toFixed(1)}` },
+    { key: "cash", label: "Real Cash 现金流", value: state.realCash, fmt: (v) => formatMoney(v) },
+    { key: "risk", label: "Suspicion 怀疑度", value: state.risk, fmt: (v) => `${Math.round(v)} / 120` },
+    { key: "patience", label: "Board Patience 董事会耐心", value: state.boardPatience, fmt: (v) => `${Math.round(v)} / 100` },
   ];
 
-  document.getElementById("metrics").innerHTML = list
-    .map(([k, v], i) => `<article class="metric"><h3>${k}</h3><strong ${i === 0 ? 'id="metricStockValue"' : ""}>${v}</strong></article>`)
+  document.getElementById("metrics").innerHTML = metrics
+    .map((m, i) => `<article class="metric"><h3>${m.label}</h3><strong data-key="${m.key}" ${i === 0 ? 'id="metricStockValue"' : ""}>${m.fmt(m.value)}</strong></article>`)
     .join("");
+
+  metrics.forEach((m) => {
+    const el = document.querySelector(`[data-key="${m.key}"]`);
+    if (!el) return;
+    const prev = state.metricPrev[m.key] ?? m.value;
+    if (Math.abs(prev - m.value) > 0.05) animateNumber(el, prev, m.value, m.fmt);
+    state.metricPrev[m.key] = m.value;
+  });
 
   const gap = state.forecastPaperGain - state.marketExpectedGain;
   const compareEl = document.getElementById("forecastCompare");
@@ -682,14 +721,14 @@ function renderActionPanel() {
     root.innerHTML = `
       <p>季度经营路线：</p>
       ${renderImpact("选择前影响预览", [
-        "日常经营：现金 +$85M，账面收益 +$45M，风险 +2，董事会耐心 -18（连续2季将触发额外惩罚）",
-        "事件驱动增长：现金 +$165M，账面收益 +$230M，风险 +14，SEC +6，董事会耐心 +14",
+        "日常经营：现金 +$70M，账面收益 +$35M，风险 +1，董事会不满 +15%",
+        "事件驱动增长：账面利润暴涨并可重置不满度，但风险与债务同步上升",
       ])}
       <div class="choices" id="midChoices"></div>
     `;
     const midOpts = [
-      { label: "坚持日常经营（低风险慢增长）", cash: 85, paper: 45, risk: 2, sec: 1, patience: -18, mode: "normal" },
-      { label: "启动事件驱动增长（高风险高叙事）", cash: 165, paper: 230, risk: 14, sec: 6, patience: 14, mode: "fraud" },
+      { label: "坚持日常经营（The Slow Death）", cash: 70, paper: 35, risk: 1, sec: 0, patience: -15, mode: "normal" },
+      { label: "接入事件驱动增长（The High Flight）", cash: 190, paper: 300, risk: 18, sec: 7, patience: 100, mode: "fraud" },
     ];
     const midHolder = document.getElementById("midChoices");
     midOpts.forEach((o) => {
@@ -705,11 +744,11 @@ function renderActionPanel() {
         applyRiskPressure(o.risk);
         state.secAttention += o.sec;
         state.stock += o.mode === "fraud" ? 8 : -2;
-        state.boardPatience = Math.max(0, Math.min(100, state.boardPatience + o.patience));
+        state.boardPatience = o.patience === 100 ? 100 : Math.max(0, Math.min(100, state.boardPatience + o.patience));
         if (o.mode === "normal") {
           state.consecutiveNormalOps += 1;
           if (state.consecutiveNormalOps >= 2) {
-            state.boardPatience = Math.max(0, state.boardPatience - 12);
+            state.boardPatience = Math.max(0, state.boardPatience - 20);
             state.stock -= 4;
             feed("董事会抱怨增长停滞：‘我们不是来经营公用事业的。’", "warn");
           }
@@ -1117,7 +1156,7 @@ function settleQuarterCore() {
   const baseInterest = state.debt * 0.08;
   const speInterest = state.speDebtLots.reduce((sum, lot) => {
     const active = Math.max(1, state.quarter - lot.bornQuarter + 1);
-    return sum + (lot.amount * (Math.pow(1.15, active) / 100));
+    return sum + (lot.amount * Math.pow(1.1, active));
   }, 0);
   const interest = baseInterest + speInterest;
   state.realCash -= operatingCost + interest;
@@ -1157,7 +1196,7 @@ function settleQuarterPostFinance() {
   clampInvestigation();
   document.getElementById("report").textContent = generateReportText();
 
-  state.boardPatience = Math.max(0, state.boardPatience - 6 + (state.lastActionSummary === "事件驱动增长" ? 2 : 0));
+  state.boardPatience = Math.max(0, state.boardPatience - 15 + (state.lastActionSummary === "事件驱动增长" ? 6 : 0));
   if (state.boardPatience <= 0) {
     state.firedByBoard = true;
     endGame();
@@ -1269,13 +1308,38 @@ function render() {
   shakeStockMetric();
   updateDangerEffects();
   maybeShowQuarterQuote();
+  saveGame();
 }
+
+function saveGame() {
+  const snap = { ...state, triggeredEvents: Array.from(state.triggeredEvents), audioCtx: null };
+  localStorage.setItem("enron_save_v2", JSON.stringify(snap));
+}
+
+function loadGame() {
+  const raw = localStorage.getItem("enron_save_v2");
+  if (!raw) return;
+  try {
+    const data = JSON.parse(raw);
+    Object.assign(state, data);
+    state.triggeredEvents = new Set(data.triggeredEvents || []);
+  } catch (_) {
+    localStorage.removeItem("enron_save_v2");
+  }
+}
+
+window.debug = (patch = {}) => {
+  Object.assign(state, patch);
+  render();
+  return { ...state };
+};
 
 document.getElementById("nextQuarterBtn").addEventListener("click", settleQuarter);
 document.getElementById("exerciseBtn").addEventListener("click", exerciseOptions);
 document.getElementById("lobbyingBtn").addEventListener("click", openLobbyingModal);
 document.getElementById("closeQuoteBtn").addEventListener("click", () => document.getElementById("quoteModal").classList.add("hidden"));
 
+loadGame();
 feed("议程启动：利润可以先到，后果会准时到。", "warn");
 feed("提示：每个选项都给出‘现实后果标签’，请留意 SEC、媒体、吹哨三条线。", "good");
 wireSceneButtons();
