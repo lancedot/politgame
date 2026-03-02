@@ -12,6 +12,9 @@ const state = {
   heavyLobbyUsed: false,
   speDebtLots: [],
   riskGrowthFactor: 1,
+  stockDropStreak: 0,
+  boardUltimatum: 0,
+  mtmPopupTriggered: false,
   privateAccount: 0,
   stock: 78,
   marketCap: 93.6,
@@ -398,6 +401,14 @@ function setActiveScene(scene) {
   };
   const hint = document.getElementById("sceneHint");
   if (hint) hint.textContent = hints[scene] || "";
+
+  const isDesk = scene === "desk";
+  const isWar = scene === "warroom";
+  const isStage = scene === "stage";
+  const byId = (id) => document.getElementById(id);
+  ["exerciseBtn", "lobbyingBtn", "routineBtn", "ledgerPanel", "phasePanel", "timelinePanel", "investigationPanel"].forEach((id) => { const el = byId(id); if (el) el.style.display = isDesk ? "" : "none"; });
+  ["actionPanel", "auditPanel", "reportPanel"].forEach((id) => { const el = byId(id); if (el) el.style.display = isWar ? "" : "none"; });
+  ["callPanel", "ratingPanel"].forEach((id) => { const el = byId(id); if (el) el.style.display = isStage ? "" : "none"; });
 }
 
 function wireSceneButtons() {
@@ -461,6 +472,10 @@ function renderMetrics() {
       ? "公关与游说（本季度已执行）"
       : "公关与游说（三档）";
   }
+
+  const nextSpeInterest = state.speDebtLots.reduce((sum, lot) => sum + (lot.amount * Math.pow(1.1, Math.max(1, (state.quarter + 1) - lot.bornQuarter + 1))), 0);
+  const ledger = document.getElementById("ledgerInfo");
+  if (ledger) ledger.textContent = `总债务 ${formatMoney(state.debt)} · 下季度SPE利息预估 ${formatMoney(nextSpeInterest)} · 董事会最后通牒 ${state.boardUltimatum ? `剩余 ${state.boardUltimatum} 季度` : "无"}`;
 
   const decay = Math.min(1, (100 - state.morality) / 100);
   const motto = document.getElementById("motto");
@@ -549,6 +564,7 @@ function renderQuarterStatus() {
     : "请完成【核心任务】→【审计沟通】→【分析师会议】三步。";
 
   document.getElementById("nextQuarterBtn").disabled = !(state.actionDone && state.auditDone && state.callDone);
+  if (!state.actionDone) setActiveScene("desk"); else if (!state.auditDone) setActiveScene("warroom"); else if (!state.callDone) setActiveScene("stage");
   document.getElementById("nextQuarterBtn").textContent = content.buttons?.nextQuarter || "[发布季度财报]";
   document.getElementById("exerciseBtn").disabled = state.exercisedThisQuarter || state.personalOptions <= 0;
   document.getElementById("exerciseBtn").textContent = content.buttons?.exercise || "[紧急处置个人期权]";
@@ -561,7 +577,7 @@ function renderTermButtons(keys) {
     <div class="term-box">
       <p class="small">术语速查：</p>
       <div class="choices">
-        ${keys.map((k) => `<button class="choice-btn term-btn" data-term="${k}">${k} ⓘ（${glossary[k].short}）</button>`).join("")}
+        ${keys.map((k) => `<button class="choice-btn term-btn" data-term="${k}" title="${glossary[k].full}">${k} ⓘ（${glossary[k].short}）</button>`).join("")}
       </div>
       <p class="small" id="termExplain"></p>
     </div>
@@ -923,6 +939,10 @@ function renderCallChoices() {
       state.callDone = true;
       state.lastCallSummary = opt.label.includes("蠢货") ? "q-attack" : "q-jargon";
       state.historyLog.push(`会议：${state.lastCallSummary}`);
+      const tw = document.getElementById("twitterFeed");
+      if (tw) { const li = document.createElement("li"); li.textContent = opt.stock > 0 ? "#CNBC: 他把分析师骂了，但市场居然买账。" : "#MarketWatch: 全是术语，没人回答现金流。"; tw.prepend(li); }
+      const line = document.getElementById("callChartLine");
+      if (line) { const w = Math.max(8, Math.min(96, 50 + state.stock * 0.2)); line.style.width = `${w}%`; line.style.background = opt.stock > 0 ? "linear-gradient(90deg,#64f0a5,#a5ffda)" : "linear-gradient(90deg,#ff6a6a,#ffb0b0)"; }
       feed(`你在会上回应：${opt.label}`, opt.cls);
       render();
     };
@@ -1167,6 +1187,7 @@ function settleQuarterCore() {
 }
 
 function settleQuarterPostFinance() {
+  const preStock = state.stock;
   if (state.paperGain < state.marketExpectedGain) {
     const gap = state.marketExpectedGain - state.paperGain;
     const drop = Math.max(3, Math.min(10, gap / 32));
@@ -1200,6 +1221,15 @@ function settleQuarterPostFinance() {
   document.getElementById("report").textContent = generateReportText();
 
   state.boardPatience = Math.max(0, state.boardPatience - 15 + (state.lastActionSummary === "事件驱动增长" ? 6 : 0));
+  state.stockDropStreak = state.stock < preStock ? state.stockDropStreak + 1 : 0;
+  if (state.boardUltimatum > 0) {
+    state.boardUltimatum -= 1;
+    if (state.boardUltimatum === 0) {
+      state.firedByBoard = true;
+      endGame();
+      return;
+    }
+  }
   if (state.boardPatience <= 0) {
     state.firedByBoard = true;
     endGame();
@@ -1222,6 +1252,38 @@ function settleQuarterPostFinance() {
   state.riskGrowthFactor = 1;
   feed("[季度财务快报] 华尔街为我们的‘成长’欢呼，尽管你的金库已经空得能听到回声。", "warn");
   render();
+  checkTemptationTriggers();
+}
+
+function checkTemptationTriggers() {
+  const dissatisfaction = 100 - state.boardPatience;
+  const nextSpeInterest = state.speDebtLots.reduce((sum, lot) => sum + (lot.amount * Math.pow(1.1, Math.max(1, (state.quarter + 1) - lot.bornQuarter + 1))), 0);
+  const conditionA = dissatisfaction > 70;
+  const conditionB = state.stockDropStreak >= 2;
+  const conditionC = state.realCash < nextSpeInterest;
+  if (!(conditionA || conditionB || conditionC)) return;
+  setActiveScene("warroom");
+  const modal = document.getElementById("mtmPopup");
+  const desc = document.getElementById("mtmPopupDesc");
+  desc.textContent = "CFO，董事会对上季度增长非常愤怒。必须启动 MTM：把20年后的钱先写进明天财报。签署可瞬间重置董事会不满，但会堆高未来风险。";
+  document.getElementById("mtmSignBtn").onclick = () => {
+    state.paperGain += 260;
+    state.stock += 14;
+    state.boardPatience = 100;
+    applyRiskPressure(18);
+    state.mtmPopupTriggered = true;
+    state.lastActionSummary = "紧急MTM";
+    feed("你按下了红章：董事会亲吻你的皮鞋，未来开始收费。", "warn");
+    modal.classList.add("hidden");
+    render();
+  };
+  document.getElementById("mtmRejectBtn").onclick = () => {
+    state.boardUltimatum = 1;
+    feed("董事会最后通牒：倒计时 1 季度。", "bad");
+    modal.classList.add("hidden");
+    render();
+  };
+  modal.classList.remove("hidden");
 }
 
 function settleQuarter() {
@@ -1346,6 +1408,7 @@ function doRoutineCheckin() {
   state.lastActionSummary = "日常打卡";
   state.actionDone = true;
   feed("天然气管道巡检完成，效率提升 0.2%。", "warn");
+  setActiveScene("desk");
   render();
 }
 

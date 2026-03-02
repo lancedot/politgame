@@ -27,7 +27,7 @@
       <button class="scene-btn" data-scene="desk">CFO 办公室</button>
       <button class="scene-btn" data-scene="warroom">管理层小黑会</button>
       <button class="scene-btn" data-scene="stage">分析师大会</button>
-          </div>
+    </div>
     <p class="small" id="sceneHint"></p>
   </section>
 
@@ -44,6 +44,11 @@
       <button id="lobbyingBtn">公关与游说</button>
       <button id="routineBtn">[日常业务打卡]</button>
       <button id="nextQuarterBtn" disabled>[发布季度财报]</button>
+    </section>
+
+    <section class="panel" id="ledgerPanel">
+      <h2>内部账本（仅办公室）</h2>
+      <p id="ledgerInfo" class="small"></p>
     </section>
 
     <section class="panel" id="timelinePanel">
@@ -89,6 +94,9 @@
       <h2>分析师会议</h2>
       <p id="callPrompt"></p>
       <div class="choices" id="callChoices"></div>
+      <p class="small">Twitter Feed</p>
+      <ul id="twitterFeed" class="rating-list"></ul>
+      <div id="callChartWrap"><div id="callChartLine"></div></div>
     </section>
 
     <section class="panel" id="reportPanel">
@@ -125,6 +133,19 @@
       <h2>公关与游说</h2>
       <p id="lobbyingDesc">选择本季度游说强度。</p>
       <div class="choices" id="lobbyingChoices"></div>
+    </div>
+  </div>
+
+  
+
+  <div class="overlay hidden" id="mtmPopup">
+    <div class="ending-card">
+      <h2>[紧急提案：重塑盈亏曲线]</h2>
+      <p id="mtmPopupDesc"></p>
+      <div class="choices">
+        <button class="choice-btn" id="mtmSignBtn">[签署执行]</button>
+        <button class="choice-btn" id="mtmRejectBtn">[拒绝冒险]</button>
+      </div>
     </div>
   </div>
 

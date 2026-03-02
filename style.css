@@ -201,3 +201,10 @@ body.scene-stage #callPanel, body.scene-stage #ratingPanel { border-color: #6f8f
 body.cash-negative { filter: saturate(0.85) hue-rotate(-18deg) brightness(0.86); }
 body.risk-shake .layout { animation: riskShake .24s linear infinite; }
 @keyframes riskShake { 0%{transform:translateX(0)} 25%{transform:translateX(-1px)} 50%{transform:translateX(1px)} 75%{transform:translateX(-1px)} 100%{transform:translateX(0)} }
+
+#callChartWrap{height:10px;background:#1a2d46;border-radius:8px;overflow:hidden;margin-top:6px;}
+#callChartLine{height:100%;width:50%;background:linear-gradient(90deg,#64f0a5,#a5ffda);transition:width .35s ease, background .35s ease;}
+#ledgerPanel{background:#0b182a;}
+body.scene-desk #ledgerPanel{display:block;}
+body.scene-warroom #ledgerPanel, body.scene-stage #ledgerPanel{display:none;}
+#mtmPopup .ending-card{max-width:760px;}
