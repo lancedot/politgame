@@ -3,6 +3,9 @@ const state = {
   paperGain: 95,
   realCash: 800,
   risk: 20,
+  boardPatience: 72,
+  consecutiveNormalOps: 0,
+  firedByBoard: false,
   privateAccount: 0,
   stock: 78,
   marketCap: 93.6,
@@ -347,7 +350,8 @@ function renderRatings() {
 
 function maybeShowQuarterQuote() {
   if (state.quoteShownForQuarter === state.quarter) return;
-  const quotes = quarterQuotes[state.quarter] || quarterQuotes[1];
+  const quoteKey = quarterQuotes[state.quarter] ? state.quarter : ((state.quarter - 1) % 4) + 1;
+  const quotes = quarterQuotes[quoteKey] || quarterQuotes[1];
   const quote = quotes[Math.floor(Math.random() * quotes.length)];
   const modal = document.getElementById("quoteModal");
   document.getElementById("quoteText").textContent = quote;
@@ -361,6 +365,7 @@ function renderMetrics() {
     ["账面收益 Paper Gain", formatMoney(state.paperGain)],
     ["真实头寸 Real Cash", formatMoney(state.realCash)],
     ["合规风险 Risk Meter", `${Math.round(state.risk)} / 120`],
+    ["董事会耐心 Board Patience", `${Math.round(state.boardPatience)} / 100`],
     ["股价 Stock Price", `$${state.stock.toFixed(1)}`],
     ["市值 Market Cap", formatBillion(state.marketCap)],
     ["市场预期利润", formatMoney(state.marketExpectedGain)],
@@ -403,7 +408,7 @@ function renderMetrics() {
 }
 
 function renderTimeline() {
-  const t = timelineData[state.quarter];
+  const t = timelineData[state.quarter] || timelineData[((state.quarter - 1) % 4) + 1];
   document.getElementById("timelineYear").textContent = `历史区间：${t.year}`;
   document.getElementById("timelineEvent").textContent = t.event;
   document.getElementById("timelinePeople").textContent = `关键人物：${t.people}`;
@@ -459,8 +464,18 @@ function generateReportText() {
   return `董事会认为公司已形成“${a} + ${b}”双轮驱动。利润与现金流错位是战略前置投入，建议投资者继续保持信念并减少提问。`;
 }
 
+function getQuarterConfig(q) {
+  if (quarterConfig[q]) return quarterConfig[q];
+  const stage = q <= 4 ? "崛起期" : q <= 8 ? "狂热期" : "崩盘期";
+  return {
+    name: `安然季度股东大会决议 · 第${q}季度（${stage}）`,
+    desc: q <= 8 ? "你在真实经营与创意会计之间继续博弈，董事会只看增长曲线。" : "风险回流与流动性挤兑同步出现，你要在倒计时中求生。",
+    intro: q < 12 ? `Q${q} 决议：要么做日常经营保命，要么用事件驱动叙事保股价。` : "Q12 决议：最后离场窗口，决定你是神话还是教材。",
+  };
+}
+
 function renderQuarterStatus() {
-  const q = quarterConfig[state.quarter];
+  const q = getQuarterConfig(state.quarter);
   document.getElementById("phaseInfo").textContent = q.name;
   document.getElementById("phaseDesc").textContent = q.desc;
   document.getElementById("actionIntro").textContent = q.intro;
@@ -541,6 +556,8 @@ function renderActionPanel() {
       state.actionDone = true;
       state.historyLog.push(`Q1 MTM：${optimism}%`);
       state.lastActionSummary = optimism >= 85 ? "激进MTM" : "保守MTM";
+      state.boardPatience = Math.min(100, state.boardPatience + (optimism >= 85 ? 16 : 9));
+      state.consecutiveNormalOps = 0;
       feed("Q1 决议通过：你让未来提前上班，让风险留在加班表里。", "good");
       render();
     };
@@ -586,6 +603,8 @@ function renderActionPanel() {
         state.actionDone = true;
         state.historyLog.push(`Q2 SPE：${o.debt}M`);
         state.lastActionSummary = o.debt > 600 ? "激进SPE" : "保守SPE";
+        state.boardPatience = Math.min(100, state.boardPatience + (o.debt > 600 ? 14 : 8));
+        state.consecutiveNormalOps = 0;
         feed("SPE 接盘完成：问题离开了报表，但没有离开现实。", "warn");
         render();
       };
@@ -628,10 +647,63 @@ function renderActionPanel() {
         state.actionDone = true;
         state.historyLog.push(`Q3 停机：${o.cash}M`);
         state.lastActionSummary = o.cash > 200 ? "高强度停机" : "低强度停机";
+        state.boardPatience = Math.min(100, state.boardPatience + (o.cash > 200 ? 12 : 7));
+        state.consecutiveNormalOps = 0;
         feed(`停机策略执行：${o.press}`, "bad");
         render();
       };
       holder.appendChild(btn);
+    });
+    return;
+  }
+
+  if (state.quarter < 12) {
+    root.innerHTML = `
+      <p>季度经营路线：</p>
+      ${renderImpact("选择前影响预览", [
+        "日常经营：现金 +$85M，账面收益 +$45M，风险 +2，董事会耐心 -18（连续2季将触发额外惩罚）",
+        "事件驱动增长：现金 +$165M，账面收益 +$230M，风险 +14，SEC +6，董事会耐心 +14",
+      ])}
+      <div class="choices" id="midChoices"></div>
+    `;
+    const midOpts = [
+      { label: "坚持日常经营（低风险慢增长）", cash: 85, paper: 45, risk: 2, sec: 1, patience: -18, mode: "normal" },
+      { label: "启动事件驱动增长（高风险高叙事）", cash: 165, paper: 230, risk: 14, sec: 6, patience: 14, mode: "fraud" },
+    ];
+    const midHolder = document.getElementById("midChoices");
+    midOpts.forEach((o) => {
+      const btn = document.createElement("button");
+      btn.className = "choice-btn";
+      btn.textContent = o.label;
+      btn.disabled = state.actionDone;
+      btn.onclick = () => {
+        if (state.actionDone) return;
+        state.realCash += o.cash;
+        state.paperGain += o.paper;
+        state.forecastPaperGain = state.paperGain + 36;
+        applyRiskPressure(o.risk);
+        state.secAttention += o.sec;
+        state.stock += o.mode === "fraud" ? 8 : -2;
+        state.boardPatience = Math.max(0, Math.min(100, state.boardPatience + o.patience));
+        if (o.mode === "normal") {
+          state.consecutiveNormalOps += 1;
+          if (state.consecutiveNormalOps >= 2) {
+            state.boardPatience = Math.max(0, state.boardPatience - 12);
+            state.stock -= 4;
+            feed("董事会抱怨增长停滞：‘我们不是来经营公用事业的。’", "warn");
+          }
+          state.lastActionSummary = "日常经营";
+        } else {
+          state.consecutiveNormalOps = 0;
+          state.debt += 90;
+          state.lastActionSummary = "事件驱动增长";
+        }
+        state.actionDone = true;
+        state.historyLog.push(`Q${state.quarter} 经营：${o.mode}`);
+        feed(o.mode === "fraud" ? "你讲了一个市场爱听的增长故事。" : "你做了正确的事，但董事会更爱爆发曲线。", o.mode === "fraud" ? "warn" : "good");
+        render();
+      };
+      midHolder.appendChild(btn);
     });
     return;
   }
@@ -821,7 +893,8 @@ function resolveQuarterRandomEvent(onDone) {
     onDone();
     return;
   }
-  const event = quarterRandomEvents[state.quarter];
+  const eventKey = quarterRandomEvents[state.quarter] ? state.quarter : ((state.quarter - 1) % 4) + 1;
+  const event = quarterRandomEvents[eventKey];
   const modal = document.getElementById("randomEvent");
   const titleNode = document.getElementById("eventTitle");
   const descNode = document.getElementById("eventDesc");
@@ -842,7 +915,7 @@ function resolveQuarterRandomEvent(onDone) {
         3: ["deadstar", "fund"],
         4: ["deny", "scapegoat"],
       };
-      state.lastEventSummary = keyMap[state.quarter][idx];
+      state.lastEventSummary = keyMap[eventKey][idx] || keyMap[eventKey][0];
       state.randomEventResolved = true;
 
       descNode.textContent = `选择结果：${feedback}`;
@@ -1019,7 +1092,14 @@ function settleQuarterPostFinance() {
   clampInvestigation();
   document.getElementById("report").textContent = generateReportText();
 
-  if (state.quarter === 4) {
+  state.boardPatience = Math.max(0, state.boardPatience - 6);
+  if (state.boardPatience <= 0) {
+    state.firedByBoard = true;
+    endGame();
+    return;
+  }
+
+  if (state.quarter === 12) {
     endGame();
     return;
   }
@@ -1057,8 +1137,11 @@ function endGame() {
   } else if (state.risk < 70 && state.privateAccount > 100) {
     ending = ["A级：优雅脱身", "你名义上被判两年，但在精英律师团操作下只剩社区服务；海外账户足够你后半生无忧。"];
     state.prisonYears = Math.max(0, Math.min(state.prisonYears, 2));
+  } else if (state.firedByBoard) {
+    ending = ["B级：平庸的牺牲品", "董事会提前解雇了你：你不够狠，也不够快，只留下绩效复盘与离职协议。"];
+    state.prisonYears = 0;
   } else {
-    ending = ["B级：平庸之辈", "公司倒闭了，你也没捞到多少。余生将在无穷无尽的民事诉讼中被反复传唤。"];
+    ending = ["C级：破产名流", "公司破产重组，你成了财经节目常驻嘉宾：名声很响，资产很薄。"];
   }
 
   const failureFlavor = state.risk > 120
