@@ -166,7 +166,6 @@ progress { width: 100%; height: 10px; }
 .scene-btn.active { border-color: #6ea8ff; box-shadow: inset 0 0 0 1px #6ea8ff; }
 body.scene-desk #phasePanel { border-color: #4d6f9e; }
 body.scene-warroom #actionPanel, body.scene-warroom #auditPanel { border-color: #9a6c4a; }
-body.scene-stage #callPanel, body.scene-stage #ratingPanel { border-color: #6f8fbc; }
 
 body.cash-negative { filter: saturate(0.85) hue-rotate(-18deg) brightness(0.86); }
 
@@ -174,7 +173,7 @@ body.cash-negative { filter: saturate(0.85) hue-rotate(-18deg) brightness(0.86);
 #callChartLine{height:100%;width:50%;background:linear-gradient(90deg,#64f0a5,#a5ffda);transition:width .35s ease, background .35s ease;}
 #ledgerPanel{background:#0b182a;}
 body.scene-desk #ledgerPanel{display:block;}
-body.scene-warroom #ledgerPanel, body.scene-stage #ledgerPanel{display:none;}
+body.scene-warroom #ledgerPanel{display:none;}
 #mtmPopup .ending-card{max-width:760px;}
 
 

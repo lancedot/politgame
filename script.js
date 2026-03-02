@@ -14,7 +14,6 @@ const GAME_CONFIG = {
   scenePermissions: {
     desk: ["exerciseBtn", "lobbyingBtn", "routineBtn", "ledgerPanel", "investigationPanel"],
     warroom: ["actionPanel", "auditPanel", "reportPanel"],
-    stage: ["callPanel", "ratingPanel"],
   },
 };
 
@@ -217,12 +216,52 @@ const quarterRandomEvents = Object.assign({}, content.events || {}, {
       { label: "B. 拒绝吹泡泡（结果：股价 -5，风险 -2，董事会不满 +12）", effect: (st) => { st.stock -= 5; st.risk = Math.max(0, st.risk - 2); st.boardPatience = Math.max(0, st.boardPatience - 12); const msg = "你守住底线，董事会却在问‘隔壁为什么涨更快’。"; feed(msg, "good"); return msg; } },
     ],
   },
+  7: {
+    title: "季度突发：路演过度承诺",
+    desc: "投资者见面会上，你把‘谨慎指引’讲成了‘神迹时间表’。",
+    choices: [
+      { label: "A. 继续加码承诺（股价 +6，风险 +9，压力 -8）", effect: (st) => { st.stock += 6; st.risk += 9; st.shareholderPressure = Math.max(0, st.shareholderPressure - 8); const msg = "掌声像利好，脚注像炸药。"; feed(msg, "warn"); return msg; } },
+      { label: "B. 当场降温预期（股价 -4，风险 -3，压力 +10）", effect: (st) => { st.stock -= 4; st.risk = Math.max(0, st.risk - 3); st.shareholderPressure = Math.min(100, st.shareholderPressure + 10); const msg = "你救了未来，得罪了今天。"; feed(msg, "good"); return msg; } },
+    ],
+  },
+  8: {
+    title: "季度突发：审计抽样扩大",
+    desc: "审计团队突然想看更多底稿，称这是‘常规增强程序’。",
+    choices: [
+      { label: "A. 配合但精挑细选（SEC -3，风险 -2，股价 -1）", effect: (st) => { st.secAttention = Math.max(0, st.secAttention - 3); st.risk = Math.max(0, st.risk - 2); st.stock -= 1; const msg = "透明了一点点，股价先不高兴。"; feed(msg, "good"); return msg; } },
+      { label: "B. 拖字诀到底（SEC +6，风险 +5，股价 +2）", effect: (st) => { st.secAttention += 6; st.risk += 5; st.stock += 2; const msg = "你又赢了今天，明天写进了案卷。"; feed(msg, "warn"); return msg; } },
+    ],
+  },
   9: {
     title: "季度突发：安达信旋转门",
     desc: "那个审计员挺聪明，给他个 VP 当当，他就会忘了那笔坏账。",
     choices: [
       { label: "A. 立即挖角（结果：风险 -30，现金 -100，SEC +4）", effect: (st) => { st.risk = Math.max(0, st.risk - 30); st.realCash -= 100; st.secAttention += 4; st.rotationDoorShield = true; const msg = "人事公告发布后，审计脚注立刻变得温柔。"; feed(msg, "warn"); return msg; } },
       { label: "B. 保持距离（结果：风险 +6，现金 0，审计独立性 +8）", effect: (st) => { st.risk += 6; st.auditIndependence = Math.min(100, st.auditIndependence + 8); const msg = "你选择合规，短期日子更难，长期睡眠更好。"; feed(msg, "good"); return msg; } },
+    ],
+  },
+  10: {
+    title: "季度突发：内部群聊截图外泄",
+    desc: "截图里写着：‘先把故事讲圆，现金以后再找。’",
+    choices: [
+      { label: "A. 甩锅给中层（股价 +1，媒体 +6，风险 +4）", effect: (st) => { st.stock += 1; st.mediaHeat += 6; st.risk += 4; const msg = "公关控场成功，良心离职率上升。"; feed(msg, "warn"); return msg; } },
+      { label: "B. 承认管理失误（股价 -3，风险 -2，SEC -2）", effect: (st) => { st.stock -= 3; st.risk = Math.max(0, st.risk - 2); st.secAttention = Math.max(0, st.secAttention - 2); const msg = "你换来一点信任，顺便损失一点估值。"; feed(msg, "good"); return msg; } },
+    ],
+  },
+  11: {
+    title: "季度突发：融资窗口骤冷",
+    desc: "银行说市场波动太大，授信要加条件。翻译：他们开始怕你了。",
+    choices: [
+      { label: "A. 接受苛刻条款（现金 +90，风险 +6，股价 -2）", effect: (st) => { st.realCash += 90; st.risk += 6; st.stock -= 2; const msg = "你买到了一口氧气，价格写在耻辱柱上。"; feed(msg, "warn"); return msg; } },
+      { label: "B. 硬撑不融资（现金 -40，风险 +2，压力 +8）", effect: (st) => { st.realCash -= 40; st.risk += 2; st.shareholderPressure = Math.min(100, st.shareholderPressure + 8); const msg = "体面保住了，账上先流血。"; feed(msg, "bad"); return msg; } },
+    ],
+  },
+  12: {
+    title: "季度突发：最后的电话会彩排",
+    desc: "IR 问你：‘今晚是讲增长神话，还是准备善后词典？’",
+    choices: [
+      { label: "A. 继续神话叙事（股价 +4，风险 +8）", effect: (st) => { st.stock += 4; st.risk += 8; const msg = "你把 Titanic 讲成了邮轮首航。"; feed(msg, "warn"); return msg; } },
+      { label: "B. 提前承认问题（股价 -6，风险 -4）", effect: (st) => { st.stock -= 6; st.risk = Math.max(0, st.risk - 4); const msg = "你终于诚实，市场终于不体面。"; feed(msg, "bad"); return msg; } },
     ],
   },
 
@@ -485,7 +524,6 @@ function setActiveScene(scene) {
   const hints = {
     desk: "【权力核心：CFO 办公室】处理日常经营、现金与邮件压力。",
     warroom: "【密室决策：暗箱实验室】决定增长叙事与结构化动作。",
-    stage: "【聚光灯下：华尔街布道】用话术管理华尔街预期。",
   };
   const hint = document.getElementById("sceneHint");
   if (hint) hint.textContent = hints[scene] || "";
@@ -560,10 +598,10 @@ function renderMetrics() {
     state.metricPrev[m.key] = m.value;
   });
 
-  const gap = state.forecastPaperGain - state.marketExpectedGain;
+  const gap = state.paperGain - state.marketExpectedGain;
   const compareEl = document.getElementById("forecastCompare");
   compareEl.className = `small ${gap >= 0 ? "good" : "bad"}`;
-  compareEl.textContent = `预期对比：你承诺 ${formatMoney(state.forecastPaperGain)}，市场要求 ${formatMoney(state.marketExpectedGain)}，差额 ${formatMoney(gap)}。`;
+  compareEl.textContent = `预期对比（实时）：叙事利润 ${formatMoney(state.paperGain)}，市场要求 ${formatMoney(state.marketExpectedGain)}，差额 ${formatMoney(gap)}。`;
 
   const previewUnits = Math.min(12, state.personalOptions);
   const previewGross = previewUnits * state.stock * 0.02;
@@ -707,25 +745,13 @@ function wirePhaseTabs() {
 }
 
 function applyPhaseTabView(q) {
-  const tab = state.phaseTab || 'overview';
+  const tab = 'overview';
   document.querySelectorAll('.phase-tab').forEach((btn) => {
     btn.classList.toggle('active', btn.getAttribute('data-tab') === tab);
   });
-  if (tab === 'rules') {
-    document.getElementById("phaseInfo").textContent = "行动规则（统一）";
-    document.getElementById("phaseDesc").textContent = "每季度可执行一个核心经营动作，并可在任意时点主动发布季报进入结算。";
-    document.getElementById("operationHint").textContent = "阶段化解锁：Q1-Q3 基础、Q4-Q8 War Room、Q9-Q12 全链路。";
-    return;
-  }
-  if (tab === 'publish') {
-    document.getElementById("phaseInfo").textContent = "发布季报（独立入口）";
-    document.getElementById("phaseDesc").textContent = "点击【向华尔街撒谎】进入季度结算：扣利息、结算风险、更新股东压力。";
-    document.getElementById("operationHint").textContent = "当前可随时发布季报；若已执行核心经营动作，建议立即结算。";
-    return;
-  }
   document.getElementById("phaseInfo").textContent = q.name;
   document.getElementById("phaseDesc").textContent = q.desc;
-  document.getElementById("operationHint").textContent = `阶段 ${getGameStage()}/3 · 本季度核心动作：${state.actionDone ? "已执行" : "未执行"}。`;
+  document.getElementById("operationHint").textContent = `阶段 ${getGameStage()}/3 · 本季度任务三选一：变现 / 日常 / 游说（互斥）· 状态：${state.actionDone ? "已执行" : "待执行"}。`;
 }
 
 function renderQuarterStatus() {
@@ -744,9 +770,9 @@ function renderQuarterStatus() {
   }
   document.getElementById("nextQuarterBtn").textContent = "[向华尔街撒谎 (Publish Earnings)]";
   const sceneMap = {
-    1: ["desk", "stage"],
-    2: ["desk", "stage", "warroom"],
-    3: ["desk", "stage", "warroom"],
+    1: ["desk"],
+    2: ["desk", "warroom"],
+    3: ["desk", "warroom"],
   };
   document.querySelectorAll('.scene-btn').forEach((btn) => {
     const sc = btn.getAttribute('data-scene');
@@ -1155,6 +1181,7 @@ function exerciseOptions() {
     feed("本季度期权策略已执行，华尔街也不会给你第二次后悔药。", "warn");
     return;
   }
+  if (!spendAction("内幕变现")) return;
   const modal = document.getElementById("optionsModal");
   const root = document.getElementById("optionsChoices");
   if (!modal || !root) return;
