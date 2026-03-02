@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quarterly Balancing Act</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header class="topbar">
+        <h1>Quarterly Balancing Act</h1>
+        <div class="controls">
+          <button id="newGameBtn">New Game</button>
+          <button id="saveBtn">Save</button>
+          <button id="loadBtn">Load</button>
+        </div>
+      </header>
+
+      <section class="hud" id="hud"></section>
+
+      <section class="narrative panel">
+        <h2>Board Briefing</h2>
+        <p id="roundNarrative"></p>
+      </section>
+
+      <section class="events panel">
+        <h2>Quarter Event</h2>
+        <div id="eventCard"></div>
+        <div class="actions" id="decisionActions"></div>
+      </section>
+
+      <section class="log panel">
+        <h2>Audit Trail</h2>
+        <ul id="logList"></ul>
+      </section>
+    </main>
+
+    <dialog id="summaryDialog">
+      <h2>Year-End Settlement</h2>
+      <p id="summaryText"></p>
+      <button id="restartBtn">Play Again</button>
+    </dialog>
+
+    <script src="content.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>

@@ -1,0 +1,102 @@
+:root {
+  color-scheme: dark;
+  --bg: #101420;
+  --panel: #171e2e;
+  --text: #ebf0ff;
+  --accent: #5ea0ff;
+  --warn: #ff7b7b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: radial-gradient(circle at top, #1d2840, var(--bg));
+  color: var(--text);
+  font-family: Inter, system-ui, sans-serif;
+}
+
+.app {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 1rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.controls,
+.actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+button {
+  border: 1px solid #345;
+  background: #24324d;
+  color: var(--text);
+  padding: 0.55rem 0.8rem;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #2d4165;
+}
+
+.panel {
+  background: color-mix(in oklab, var(--panel), black 8%);
+  border: 1px solid #2a3858;
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.hud {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 0.5rem;
+}
+
+.metric {
+  background: #121a2b;
+  border: 1px solid #263654;
+  border-radius: 8px;
+  padding: 0.7rem;
+}
+
+.metric span {
+  display: block;
+  font-size: 0.8rem;
+  opacity: 0.85;
+}
+
+.metric strong {
+  font-size: 1.2rem;
+  color: var(--accent);
+}
+
+.log ul,
+#logList {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+#logList li {
+  margin-bottom: 0.4rem;
+}
+
+dialog {
+  border: 1px solid #30476f;
+  border-radius: 12px;
+  background: #131c30;
+  color: var(--text);
+  max-width: 500px;
+}
