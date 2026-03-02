@@ -1,5 +1,42 @@
 const content = window.GAME_CONTENT || {};
 
+const GAME_CONFIG = {
+  maxQuarter: 12,
+  riskDangerLine: 80,
+  boardQuarterDecay: 15,
+  saveKey: "enron_save_v2",
+  scenePermissions: {
+    desk: ["exerciseBtn", "lobbyingBtn", "routineBtn", "ledgerPanel", "phasePanel", "timelinePanel", "investigationPanel"],
+    warroom: ["actionPanel", "auditPanel", "reportPanel"],
+    stage: ["callPanel", "ratingPanel"],
+  },
+};
+
+const lifecycleHooks = {
+  beforeQuarterStart: [],
+  afterQuarterSettle: [],
+  beforeEnding: [],
+};
+
+function onHook(name, fn) {
+  if (!lifecycleHooks[name] || typeof fn !== "function") return;
+  lifecycleHooks[name].push(fn);
+  return () => {
+    const i = lifecycleHooks[name].indexOf(fn);
+    if (i >= 0) lifecycleHooks[name].splice(i, 1);
+  };
+}
+
+function emitHook(name, payload = {}) {
+  [...(lifecycleHooks[name] || [])].forEach((fn) => {
+    try { fn(payload, state); } catch (e) { console.warn(`[hook:${name}]`, e); }
+  });
+}
+
+function getRotatingKey(map, q) {
+  return map[q] ? q : ((q - 1) % 4) + 1;
+}
+
 const state = {
   quarter: 1,
   paperGain: 95,
@@ -309,9 +346,9 @@ function applyRiskPressure(baseRisk) {
 }
 
 function updateDangerEffects() {
-  const dangerOn = state.risk > 80 || state.realCash < 100;
+  const dangerOn = state.risk > GAME_CONFIG.riskDangerLine || state.realCash < 100;
   document.body.classList.toggle("danger-mode", dangerOn);
-  document.body.classList.toggle("risk-shake", state.risk > 80);
+  document.body.classList.toggle("risk-shake", state.risk > GAME_CONFIG.riskDangerLine);
   document.body.classList.toggle("cash-negative", state.realCash < 0);
   if (!dangerOn) return;
   if (!state.audioCtx) state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -378,7 +415,7 @@ function renderRatings() {
 
 function maybeShowQuarterQuote() {
   if (state.quoteShownForQuarter === state.quarter) return;
-  const quoteKey = quarterQuotes[state.quarter] ? state.quarter : ((state.quarter - 1) % 4) + 1;
+  const quoteKey = getRotatingKey(quarterQuotes, state.quarter);
   const quotes = quarterQuotes[quoteKey] || quarterQuotes[1];
   const quote = quotes[Math.floor(Math.random() * quotes.length)];
   const modal = document.getElementById("quoteModal");
@@ -402,13 +439,14 @@ function setActiveScene(scene) {
   const hint = document.getElementById("sceneHint");
   if (hint) hint.textContent = hints[scene] || "";
 
-  const isDesk = scene === "desk";
-  const isWar = scene === "warroom";
-  const isStage = scene === "stage";
   const byId = (id) => document.getElementById(id);
-  ["exerciseBtn", "lobbyingBtn", "routineBtn", "ledgerPanel", "phasePanel", "timelinePanel", "investigationPanel"].forEach((id) => { const el = byId(id); if (el) el.style.display = isDesk ? "" : "none"; });
-  ["actionPanel", "auditPanel", "reportPanel"].forEach((id) => { const el = byId(id); if (el) el.style.display = isWar ? "" : "none"; });
-  ["callPanel", "ratingPanel"].forEach((id) => { const el = byId(id); if (el) el.style.display = isStage ? "" : "none"; });
+  Object.entries(GAME_CONFIG.scenePermissions).forEach(([k, ids]) => {
+    ids.forEach((id) => {
+      const el = byId(id);
+      if (!el) return;
+      el.style.display = k === scene ? "" : "none";
+    });
+  });
 }
 
 function wireSceneButtons() {
@@ -486,7 +524,7 @@ function renderMetrics() {
 }
 
 function renderTimeline() {
-  const t = timelineData[state.quarter] || timelineData[((state.quarter - 1) % 4) + 1];
+  const t = timelineData[state.quarter] || timelineData[getRotatingKey(timelineData, state.quarter)];
   document.getElementById("timelineYear").textContent = `历史区间：${t.year}`;
   document.getElementById("timelineEvent").textContent = t.event;
   document.getElementById("timelinePeople").textContent = `关键人物：${t.people}`;
@@ -976,7 +1014,7 @@ function resolveQuarterRandomEvent(onDone) {
     onDone();
     return;
   }
-  const eventKey = quarterRandomEvents[state.quarter] ? state.quarter : ((state.quarter - 1) % 4) + 1;
+  const eventKey = getRotatingKey(quarterRandomEvents, state.quarter);
   const event = quarterRandomEvents[eventKey];
   const modal = document.getElementById("randomEvent");
   const titleNode = document.getElementById("eventTitle");
@@ -1220,7 +1258,7 @@ function settleQuarterPostFinance() {
   clampInvestigation();
   document.getElementById("report").textContent = generateReportText();
 
-  state.boardPatience = Math.max(0, state.boardPatience - 15 + (state.lastActionSummary === "事件驱动增长" ? 6 : 0));
+  state.boardPatience = Math.max(0, state.boardPatience - GAME_CONFIG.boardQuarterDecay + (state.lastActionSummary === "事件驱动增长" ? 6 : 0));
   state.stockDropStreak = state.stock < preStock ? state.stockDropStreak + 1 : 0;
   if (state.boardUltimatum > 0) {
     state.boardUltimatum -= 1;
@@ -1230,13 +1268,14 @@ function settleQuarterPostFinance() {
       return;
     }
   }
+  emitHook("afterQuarterSettle", { quarter: state.quarter });
   if (state.boardPatience <= 0) {
     state.firedByBoard = true;
     endGame();
     return;
   }
 
-  if (state.quarter === 12) {
+  if (state.quarter === GAME_CONFIG.maxQuarter) {
     endGame();
     return;
   }
@@ -1250,6 +1289,7 @@ function settleQuarterPostFinance() {
   state.lobbyingUsedThisQuarter = false;
   state.tipShredBoost = false;
   state.riskGrowthFactor = 1;
+  emitHook("beforeQuarterStart", { quarter: state.quarter });
   feed("[季度财务快报] 华尔街为我们的‘成长’欢呼，尽管你的金库已经空得能听到回声。", "warn");
   render();
   checkTemptationTriggers();
@@ -1291,6 +1331,7 @@ function settleQuarter() {
 }
 
 function endGame() {
+  emitHook("beforeEnding", { quarter: state.quarter });
   const overlay = document.getElementById("ending");
   const title = document.getElementById("endingTitle");
   const desc = document.getElementById("endingDesc");
@@ -1302,9 +1343,9 @@ function endGame() {
   let ending;
   if (state.risk > 120 || (state.secAttention > 98 && state.privateAccount < 260)) {
     ending = ["F级：联邦监狱的明星", "你将在监狱里教狱警如何通过 SPE 偷走食堂的经费。"];
-  } else if (state.quarter >= 12 && state.privateAccount > 500 && state.risk < 60) {
+  } else if (state.quarter >= GAME_CONFIG.maxQuarter && state.privateAccount > 500 && state.risk < 60) {
     ending = ["S级：华尔街的隐形教父", "公司灰飞烟灭，你却在私人海滩上思考下一次投资。"];
-  } else if (state.quarter >= 12 && state.privateAccount > 100 && state.risk < 90) {
+  } else if (state.quarter >= GAME_CONFIG.maxQuarter && state.privateAccount > 100 && state.risk < 90) {
     ending = ["A级：体面的流亡者", "虽然背负骂名，但离岸账户的数字足以让你在欧洲过上贵族生活。"];
     state.prisonYears = Math.max(0, Math.min(state.prisonYears, 2));
   } else if (state.firedByBoard) {
@@ -1378,18 +1419,18 @@ function render() {
 
 function saveGame() {
   const snap = { ...state, triggeredEvents: Array.from(state.triggeredEvents), audioCtx: null };
-  localStorage.setItem("enron_save_v2", JSON.stringify(snap));
+  localStorage.setItem(GAME_CONFIG.saveKey, JSON.stringify(snap));
 }
 
 function loadGame() {
-  const raw = localStorage.getItem("enron_save_v2");
+  const raw = localStorage.getItem(GAME_CONFIG.saveKey);
   if (!raw) return;
   try {
     const data = JSON.parse(raw);
     Object.assign(state, data);
     state.triggeredEvents = new Set(data.triggeredEvents || []);
   } catch (_) {
-    localStorage.removeItem("enron_save_v2");
+    localStorage.removeItem(GAME_CONFIG.saveKey);
   }
 }
 
@@ -1398,6 +1439,22 @@ window.debug = (patch = {}) => {
   render();
   return { ...state };
 };
+
+window.gameApi = {
+  getState: () => ({ ...state, triggeredEvents: Array.from(state.triggeredEvents) }),
+  patchState: (patch = {}) => { Object.assign(state, patch); render(); },
+  clearSave: () => localStorage.removeItem(GAME_CONFIG.saveKey),
+  on: onHook,
+  emit: emitHook,
+  setScenePanels: (scene, ids = []) => {
+    if (!GAME_CONFIG.scenePermissions[scene]) return false;
+    GAME_CONFIG.scenePermissions[scene] = Array.from(new Set(ids));
+    if (state.activeScene === scene) setActiveScene(scene);
+    return true;
+  },
+  config: GAME_CONFIG,
+};
+
 
 function doRoutineCheckin() {
   if (state.actionDone) return;
