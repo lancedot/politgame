@@ -1261,8 +1261,8 @@ function exerciseOptions() {
         return;
       }
       const units = Math.max(1, Math.floor(Math.min(12, state.personalOptions) * o.ratio));
-      const grossProceeds = units * state.stock * 0.02;
-      const liquidityCap = Math.max(6, state.realCash * 0.18);
+      const grossProceeds = units * state.stock * 0.05;
+      const liquidityCap = Math.max(20, state.realCash * 0.35);
       const proceeds = Math.min(grossProceeds, liquidityCap);
       state.personalOptions -= units;
       state.privateAccount += proceeds;
@@ -1368,19 +1368,6 @@ function handleCashCrisisIfNeeded(onDone) {
       },
     },
     {
-      label: "通过 Chewco 过桥融资（历史原型：表外结构融资）｜现金 +$180M / 风险 +12",
-      apply: () => {
-        state.realCash += 180;
-        state.debt += 160;
-        state.totalAssets += 80;
-        state.risk += 9;
-        state.secAttention += 8;
-        state.whistleblowerPressure += 6;
-        state.lastEventSummary = "delay";
-        feed("你用表外结构再借一层命，审计脚注越来越像小说。", "bad");
-      },
-    },
-    {
       label: "申请银行紧急授信（历史原型：信用额度救火）｜现金 +$90M / 股价 -6",
       apply: () => {
         state.realCash += 90;
@@ -1393,8 +1380,7 @@ function handleCashCrisisIfNeeded(onDone) {
     },
   ];
 
-  const gatedOptions = options.filter((_, i) => i !== 1 || state.isChewcoUnlocked);
-  gatedOptions.forEach((opt) => {
+  options.forEach((opt) => {
     const btn = document.createElement("button");
     btn.className = "choice-btn";
     btn.textContent = opt.label;
@@ -1606,15 +1592,15 @@ function endGame() {
   if (state.risk >= 120 || (state.secAttention > 98 && state.privateAccount < 260)) {
     ending = ["F级：联邦监狱的明星", "你将在监狱里教狱警如何通过 SPE 偷走食堂的经费。"];
     endingGrade = "F";
-  } else if (state.quarter >= GAME_CONFIG.maxQuarter && state.privateAccount > 500 && state.risk < 60) {
+  } else if (state.quarter >= GAME_CONFIG.maxQuarter && state.privateAccount > 320 && state.risk < 65) {
     ending = ["S级：华尔街的隐形教父", "公司灰飞烟灭，你却在私人海滩上思考下一次投资。"];
     endingGrade = "S";
-  } else if (state.quarter >= GAME_CONFIG.maxQuarter && state.privateAccount > 100 && state.risk < 90) {
+  } else if (state.quarter >= GAME_CONFIG.maxQuarter && state.privateAccount > 60 && state.risk < 95) {
     ending = ["A级：体面的流亡者", "虽然背负骂名，但离岸账户的数字足以让你在欧洲过上贵族生活。"];
     endingGrade = "A";
     state.prisonYears = Math.max(0, Math.min(state.prisonYears, 2));
   } else if (state.firedByBoard) {
-    if (state.privateAccount >= 220 && state.prisonYears === 0) {
+    if (state.privateAccount >= 140 && state.prisonYears === 0) {
       ending = ["B级：明智下船", "你在董事会投票前完成了体面离场：公司留下烂账，你带着现金和律师团队先走。"];
     } else {
       ending = ["B级：安全被解雇", "HR 把你的工牌收走了，但联邦执法还没来敲门。你失去了头衔，保住了自由。"];
@@ -1624,6 +1610,9 @@ function endGame() {
   } else {
     ending = ["C级：破产名流", "公司破产重组，你成了财经节目常驻嘉宾：名声很响，资产很薄。"];
     endingGrade = "C";
+    if (state.risk < 45 && state.secAttention < 55) {
+      state.prisonYears = 0;
+    }
   }
 
   const failureFlavor = state.risk >= 120
