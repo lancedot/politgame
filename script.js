@@ -814,10 +814,11 @@ function renderQuarterStatus() {
     checkTemptationTriggers();
   }
   document.getElementById("nextQuarterBtn").textContent = "[向华尔街撒谎 (Publish Earnings)]";
+  const warroomUnlocked = state.isMTMUnlocked || state.isChewcoUnlocked || state.isLobbyUnlocked || state.isAuditUnlocked;
   const sceneMap = {
     1: ["desk"],
-    2: ["desk", "warroom"],
-    3: ["desk", "warroom"],
+    2: warroomUnlocked ? ["desk", "warroom"] : ["desk"],
+    3: warroomUnlocked ? ["desk", "warroom"] : ["desk"],
   };
   document.querySelectorAll('.scene-btn').forEach((btn) => {
     const sc = btn.getAttribute('data-scene');
@@ -1185,17 +1186,13 @@ function resolveQuarterRandomEvent(onDone) {
       state.triggeredEvents.add(eventGuardKey);
       showDelta(before, "季度突发结果");
 
-      descNode.textContent = `选择结果：${feedback || "已执行。"}`;
+      descNode.textContent = `选择结果：${feedback || "已执行。"} 已自动进入季度结算。`;
       root.innerHTML = "";
-      const confirm = document.createElement("button");
-      confirm.className = "choice-btn";
-      confirm.textContent = "确认并继续季度结算";
-      confirm.onclick = () => {
+      setTimeout(() => {
         modal.classList.add("hidden");
         render();
         onDone();
-      };
-      root.appendChild(confirm);
+      }, 260);
     };
     root.appendChild(btn);
   });
