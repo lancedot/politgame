@@ -776,6 +776,12 @@ function updateUnlockFlags() {
   }
 }
 
+function getGameStage() {
+  if (state.quarter <= 4) return 1;
+  if (state.quarter <= 8) return 2;
+  return 3;
+}
+
 function getQuarterConfig(q) {
   if (quarterConfig[q]) return quarterConfig[q];
   const stage = q <= 4 ? "崛起期" : q <= 8 ? "狂热期" : "崩盘期";
