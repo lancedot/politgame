@@ -740,28 +740,30 @@ function updateUnlockFlags() {
   if (state.shareholderPressure >= 70 && !state.isMTMUnlocked) {
     state.isMTMUnlocked = true;
     track("unlock_triggered", { unlock_type: "mtm", shareholder_pressure: Math.round(state.shareholderPressure) });
-    showUnlockModal("【恶魔的邀约：预支未来】", "把二十年后的饼拿到今天吃掉。至于明天？明天会有更大的饼。");
-    feed("股东压力冲破 70%：你被叫进密室，‘恶魔的邀约’正式开启。", "warn");
+    showUnlockModal("【密室议程：MTM 方案】", "股东会把增长目标拍在你桌上：‘数字要立刻好看。’你想到了 MTM（把未来利润搬到今天），但是否签字执行，完全由你决定。你可以观望，也可以冒险。 ");
+    feed("股东会压力突破阈值：你想到了 MTM 这把刀，但刀柄仍在你手里。", "warn");
     if (!state.actionDone) setActiveScene("warroom");
-    checkTemptationTriggers();
   }
-  if (getGameStage() >= 3 && state.risk > 40 && !state.isAuditUnlocked) {
-    state.isAuditUnlocked = true;
-    track("unlock_triggered", { unlock_type: "audit", risk: Math.round(state.risk) });
-    showUnlockModal("审计沟通解锁", "风险超过 40，审计团队要求你解释结构。每一次沟通都可能改变监管走向。");
-    feed("新功能解锁：审计沟通（风险>40）。", "warn");
+
+  if (state.isMTMUnlocked && state.mtmRatio >= 55 && !state.isChewcoUnlocked) {
+    state.isChewcoUnlocked = true;
+    track("unlock_triggered", { unlock_type: "chewco", mtm_ratio: state.mtmRatio });
+    showUnlockModal("Chewco 解锁", "MTM 比例抬高后，报表开始‘过热’。你需要一个更深的口袋安置坏账与债务——Chewco 就是这只口袋。它能续命，也会加厚证据链。 ");
+    feed("Chewco 解锁：MTM 拉得越高，越需要表外结构来托底。", "bad");
   }
-  if (getGameStage() >= 3 && state.risk > 70 && !state.isLobbyUnlocked) {
+
+  if (state.risk > 70 && !state.isLobbyUnlocked) {
     state.isLobbyUnlocked = true;
     track("unlock_triggered", { unlock_type: "lobby", risk: Math.round(state.risk) });
-    showUnlockModal("Lobby 解锁", "只要支票足够厚，监管者的眼睛就可以暂时性失明。你现在可以启动游说。 ");
-    feed("新功能解锁：Lobby 游说（风险>70）。", "warn");
+    showUnlockModal("Lobby 解锁", "风险已经高到走廊里都能闻到焦味。你现在可以启动游说：花真金白银去换几周安静，代价是更深的道德透支。 ");
+    feed("新功能解锁：Lobby 游说（风险过高触发）。", "warn");
   }
-  if ((state.realCash < 320 || state.quarter >= 2 || state.risk >= 45) && !state.isChewcoUnlocked) {
-    state.isChewcoUnlocked = true;
-    track("unlock_triggered", { unlock_type: "chewco", cash: Number(state.realCash.toFixed(2)) });
-    showUnlockModal("Chewco 解锁", "这是一个‘特殊的口袋’，把那些难看的坏账丢进去，世界就清净了。 ");
-    feed("Chewco 解锁：这是一个‘特殊的口袋’，把那些难看的坏账丢进去，世界就清净了。", "bad");
+
+  if (state.secAttention > 68 && !state.isAuditUnlocked) {
+    state.isAuditUnlocked = true;
+    track("unlock_triggered", { unlock_type: "audit", sec_attention: Math.round(state.secAttention) });
+    showUnlockModal("审计沟通解锁", "监管关注度已逼近红线。审计团队要求你给出解释：每一次沟通都可能换来一季缓冲，也可能成为未来呈堂证供。 ");
+    feed("新功能解锁：审计沟通（监管压力过高触发）。", "warn");
   }
 }
 
@@ -792,12 +794,11 @@ function applyPhaseTabView(q) {
   });
   document.getElementById("phaseInfo").textContent = q.name;
   document.getElementById("phaseDesc").textContent = q.desc;
-  document.getElementById("operationHint").textContent = `阶段 ${getGameStage()}/3 · 办公室负责发布季报；暗箱实验室包含 MTM / Chewco / 审计沟通 / Lobby，并保留调查进度。`;
+  document.getElementById("operationHint").textContent = `阶段 ${getGameStage()}/3 · 股东会压力上升后，你会想到 MTM 方案；是否执行由你决定。MTM做高后将解锁 Chewco，风险继续上扬会解锁 Lobby，监管压力失控则触发审计沟通。`;
 }
 
 function renderQuarterStatus() {
   const q = getQuarterConfig(state.quarter);
-  document.getElementById("actionIntro").textContent = q.intro;
   const stage = getGameStage();
   applyPhaseTabView(q);
 
@@ -828,9 +829,9 @@ function renderQuarterStatus() {
   exerciseBtn.textContent = "[内幕变现]";
   const routineBtn = document.getElementById("routineBtn");
   if (routineBtn) {
-    routineBtn.disabled = false;
+    routineBtn.disabled = state.actionDone;
     routineBtn.style.display = "";
-    routineBtn.textContent = "[平庸的日常 (Honest Grinding)]";
+    routineBtn.textContent = state.actionDone ? "[平庸的日常（本季度已执行）]" : "[平庸的日常 (Honest Grinding)]";
   }
   updateUnlockFlags();
   if (!state.actionDone && state.isMTMUnlocked && stage >= 2) {
@@ -1679,6 +1680,7 @@ window.gameApi = {
 
 
 function doRoutineCheckin() {
+  if (!spendAction("平庸的日常")) return;
   state.realCash *= 1.05;
   state.stock *= 1.02;
   state.paperGain += 5;
@@ -1686,7 +1688,6 @@ function doRoutineCheckin() {
   state.shareholderPressure = Math.min(100, state.shareholderPressure + 4);
   state.consecutiveNormalOps += 1;
   state.lastActionSummary = "日常打卡";
-  state.actionDone = true;
   feed("天然气管道巡检完成，效率提升 0.2%。", "warn");
   setActiveScene("desk");
   render();
