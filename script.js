@@ -12,8 +12,8 @@ const GAME_CONFIG = {
   boardQuarterDecay: 15,
   saveKey: "enron_save_v2",
   scenePermissions: {
-    desk: ["exerciseBtn", "routineBtn", "nextQuarterBtn", "ledgerPanel", "investigationPanel"],
-    warroom: ["actionPanel", "auditPanel", "reportPanel", "investigationPanel"],
+    desk: ["exerciseBtn", "routineBtn", "nextQuarterBtn", "ledgerPanel", "reportPanel", "investigationPanel"],
+    warroom: ["mtmPanel", "chewcoPanel", "auditPanel", "lobbyPanel", "investigationPanel"],
   },
 };
 
@@ -655,14 +655,6 @@ function renderMetrics() {
     ? "本季度已完成期权变现。"
     : `个人期权变现预览：${previewUnits} 份，预计到账 ${formatMoney(previewProceeds)}，基础风险 +3。`;
 
-  const lobbyBtn = document.getElementById("lobbyingBtn");
-  if (lobbyBtn) {
-    lobbyBtn.disabled = state.lobbyingUsedThisQuarter;
-    lobbyBtn.textContent = state.lobbyingUsedThisQuarter
-      ? "公关与游说（本季度已执行）"
-      : "公关与游说（三档）";
-  }
-
   const nextSpeInterest = state.speDebtLots.reduce((sum, lot) => sum + (lot.amount * Math.pow(1.1, Math.max(1, (state.quarter + 1) - lot.bornQuarter + 1))), 0);
   const ledger = document.getElementById("ledgerInfo");
   if (ledger) ledger.textContent = `总债务 ${formatMoney(state.debt)} · 下季度SPE利息预估 ${formatMoney(nextSpeInterest)} · 董事会最后通牒 ${state.boardUltimatum ? `剩余 ${state.boardUltimatum} 季度` : "无"}`;
@@ -761,7 +753,7 @@ function updateUnlockFlags() {
     showUnlockModal("Lobby 解锁", "只要支票足够厚，监管者的眼睛就可以暂时性失明。你现在可以启动游说。 ");
     feed("新功能解锁：Lobby 游说（风险>70）。", "warn");
   }
-  if ((state.realCash < 180 || state.quarter >= 4) && !state.isChewcoUnlocked) {
+  if ((state.realCash < 320 || state.quarter >= 2 || state.risk >= 45) && !state.isChewcoUnlocked) {
     state.isChewcoUnlocked = true;
     track("unlock_triggered", { unlock_type: "chewco", cash: Number(state.realCash.toFixed(2)) });
     showUnlockModal("Chewco 解锁", "这是一个‘特殊的口袋’，把那些难看的坏账丢进去，世界就清净了。 ");
@@ -886,82 +878,55 @@ function wireGlossary() {
 }
 
 function renderActionPanel() {
-  const root = document.getElementById("actionArea");
-  root.innerHTML = "";
-  const stage = getGameStage();
+  const mtmRoot = document.getElementById("mtmArea");
+  const chewcoRoot = document.getElementById("chewcoArea");
+  const lobbyRoot = document.getElementById("lobbyArea");
+  const mtmIntro = document.getElementById("mtmIntro");
+  const chewcoIntro = document.getElementById("chewcoIntro");
+  const lobbyIntro = document.getElementById("lobbyIntro");
+  if (!mtmRoot || !chewcoRoot || !lobbyRoot) return;
 
-  if (stage === 1) {
-    root.innerHTML = `
-      <p>CFO Office：请选择本月经营策略。</p>
-      <div class="choices">
-        <button class="choice-btn" id="stableBtn">[稳健增长] —— 像老爷爷一样修管道。</button>
-        <button class="choice-btn" id="aggressiveBtn">[激进扩张] —— 把赌注押在未开发的能源市场上。</button>
-      </div>
-    `;
-    const bind = (id, fn) => {
-      const b = document.getElementById(id);
-      if (!b) return;
-      b.onclick = () => {
-        if (!spendAction("经营决策")) return;
-        fn();
-        state.actionDone = true;
-        render();
-      };
-    };
-    bind("stableBtn", () => {
-      const before = snapshotCore();
-      state.realCash *= 1.05;
-      state.stock *= 1.02;
-      state.privateAccount += 2;
-      state.shareholderPressure = Math.min(100, state.shareholderPressure + 5);
-      state.lastActionSummary = "稳健增长";
-      feed("稳健增长执行：现金+5%，股价+2%，顺手把一点奖金塞进了避税天堂。", "good");
-      showDelta(before, "稳健增长结算");
-    });
-    bind("aggressiveBtn", () => {
-      const before = snapshotCore();
-      state.realCash *= 1.15;
-      state.stock *= 1.10;
-      if (Math.random() < 0.3) {
-        state.stock *= 0.85;
-        feed("激进扩张翻车：股价 -15%。", "bad");
-      }
-      state.shareholderPressure = Math.max(0, state.shareholderPressure - 6);
-      state.lastActionSummary = "激进扩张";
-      feed("在法律的边缘疯狂试探，通常能带回更多的黄金。", "warn");
-      showDelta(before, "激进扩张结算");
-    });
-    return;
-  }
+  mtmIntro.textContent = "把明天的利润提前搬到今天，像魔术一样提振报表，像慢性毒药一样积累后果。";
+  chewcoIntro.textContent = state.isChewcoUnlocked
+    ? "把亏损资产塞进结构化口袋：现金会短暂回暖，证据链会永久增厚。"
+    : "Chewco 尚未完全铺路：继续提高风险/推进季度即可提前解锁。";
+  lobbyIntro.textContent = state.isLobbyUnlocked
+    ? "在规则边缘打蜡抛光：付现金、降热度、买时间。"
+    : "Lobby 未解锁：风险达到阈值后，你会拿到一串‘老朋友’名单。";
 
-  // Stage 2/3: warroom branches
-  root.innerHTML = `
-    <p>War Room：CFO，我们需要一点‘会计魔法’。</p>
+  mtmRoot.innerHTML = `
     <label for="mtmRatio">MTM 比例：0%（诚实） ↔ 100%（疯狂）</label>
     <input type="range" id="mtmRatio" min="0" max="100" step="5" value="${state.mtmRatio}" />
     <p id="mtmPreview" class="small"></p>
-    <p class="small">恶魔的邀约（效果说明）：把未来利润提前确认到当季。比例越高，报表越漂亮；但风险、SEC关注与后续反噬也越高。短期让董事会安静，长期让法务失眠。</p>
+    <p class="small">恶魔邀约·详细条款：你将未来合同的远期利润提前确认为本季收益。短期效果：股价与董事会满意度上升；中期副作用：风险、SEC关注、媒体热度、吹哨压力同步抬升；长期结局：每个漂亮数字都可能在法庭上变成证词。</p>
     <button id="mtmApplyBtn" class="choice-btn" style="background:#7e1e1e;border-color:#d65a5a">[签署 MTM 方案]</button>
+  `;
+
+  chewcoRoot.innerHTML = `
+    <p class="small">Chewco 分支：典型表外融资动作，适合在现金紧绷但你还想继续讲增长故事时使用。</p>
     <button id="chewcoBtn" class="choice-btn" ${state.isChewcoUnlocked ? "" : "disabled"}>[Chewco 过桥融资]</button>
+  `;
+
+  lobbyRoot.innerHTML = `
+    <p class="small">Lobby 分支：游说/公关不再与其他行动互斥。你可以在同一季度里既变现、又打卡、再去润滑关系——黑色幽默在于，这确实很像现实。</p>
     <button id="warLobbyBtn" class="choice-btn" ${state.isLobbyUnlocked ? "" : "disabled"}>[Lobby 政策润滑]</button>
   `;
+
   const slider = document.getElementById("mtmRatio");
   const btn = document.getElementById("mtmApplyBtn");
   const preview = document.getElementById("mtmPreview");
-  if (!slider || !btn || !preview) return;
   const renderPreview = () => {
     const ratio = Number(slider.value);
     const lift = ratio / 100;
-    preview.textContent = `预计结果：账面利润 +${(120 * lift).toFixed(1)}M｜股价 +${(12 * lift).toFixed(1)}｜风险 +${(14 * lift).toFixed(1)}｜股东压力 -${(20 * lift).toFixed(1)}`;
+    preview.textContent = `预计结果：账面利润 +${(120 * lift).toFixed(1)}M｜股价 +${(12 * lift).toFixed(1)}｜风险 +${(14 * lift).toFixed(1)}｜股东压力 -${(20 * lift).toFixed(1)}｜SEC关注 +${(8 * lift).toFixed(1)}`;
   };
   slider.oninput = renderPreview;
   renderPreview();
-  const chewcoBtn = document.getElementById("chewcoBtn");
-  const warLobbyBtn = document.getElementById("warLobbyBtn");
-  if (chewcoBtn) chewcoBtn.onclick = () => { runChewcoBridge(); render(); };
-  if (warLobbyBtn) warLobbyBtn.onclick = () => openLobbyingModal();
+
+  document.getElementById("chewcoBtn").onclick = () => { runChewcoBridge(); render(); };
+  document.getElementById("warLobbyBtn").onclick = () => openLobbyingModal();
+
   btn.onclick = () => {
-    if (!spendAction("MTM 决策")) return;
     const before = snapshotCore();
     state.mtmRatio = Number(slider.value);
     state.isMTMUnlocked = true;
@@ -969,11 +934,14 @@ function renderActionPanel() {
     state.paperGain += 120 * lift;
     state.stock += 12 * lift;
     state.risk += 14 * lift;
+    state.secAttention += 8 * lift;
+    state.mediaHeat += 5 * lift;
+    state.whistleblowerPressure += 4 * lift;
     state.shareholderPressure = Math.max(0, state.shareholderPressure - (20 * lift));
     track("mtm_ratio_set", { ratio: state.mtmRatio });
     state.lastActionSummary = `MTM-${state.mtmRatio}%`;
     state.actionDone = true;
-    feed(`MTM 已签署：比例 ${state.mtmRatio}%，报表更漂亮，绞索更紧。`, "warn");
+    feed(`MTM 已签署：比例 ${state.mtmRatio}%，董事会很满意，未来的你很危险。`, "warn");
     showDelta(before, "MTM 执行结果");
     render();
   };
@@ -1276,7 +1244,6 @@ function exerciseOptions() {
 }
 
 function runLobbying(tier) {
-  if (state.lobbyingUsedThisQuarter) return;
   const before = snapshotCore();
   const cfg = {
     light: { cash: 35, riskPct: 0.14, secCut: 4, mediaCut: 9, text: "轻度游说" },
@@ -1307,7 +1274,6 @@ function runLobbying(tier) {
     state.secAttention = Math.max(0, state.secAttention - cfg.secCut);
   }
   state.mediaHeat = Math.max(0, state.mediaHeat - cfg.mediaCut);
-  state.lobbyingUsedThisQuarter = true;
   state.historyLog.push(`游说-${cfg.text}：-${formatMoney(cfg.cash)} / 风险-${riskDrop.toFixed(1)}`);
   feed(`${cfg.text}执行：支付 ${formatMoney(cfg.cash)}，风险下降 ${riskDrop.toFixed(1)}。`, "good");
   showDelta(before, `${cfg.text}结果`);
@@ -1319,7 +1285,6 @@ function openLobbyingModal() {
     feed("Lobby 尚未解锁：风险超过 70 后可使用。", "warn");
     return;
   }
-  if (state.lobbyingUsedThisQuarter) return;
   const modal = document.getElementById("lobbyingModal");
   const root = document.getElementById("lobbyingChoices");
   root.innerHTML = "";
@@ -1432,7 +1397,7 @@ function settleQuarterPostFinance() {
     return;
   }
   const preStock = state.stock;
-  state.secAttention += Math.min(8, 1.5 + state.risk * 0.035);
+  state.secAttention += Math.min(10, 2 + state.risk * 0.05 + state.mediaHeat * 0.015);
   if (state.paperGain < state.marketExpectedGain) {
     const gap = state.marketExpectedGain - state.paperGain;
     const drop = Math.max(3, Math.min(10, gap / 32));
@@ -1637,21 +1602,17 @@ function endGame() {
 }
 
 function ensureInteractivePanels() {
-  const actionRoot = document.getElementById("actionArea");
-  if (!state.actionDone && actionRoot && actionRoot.querySelectorAll("button").length === 0) {
-    renderActionPanel();
-  }
+  const mtmRoot = document.getElementById("mtmArea");
+  if (mtmRoot && mtmRoot.querySelectorAll("button").length === 0) renderActionPanel();
 }
 
 function render() {
   renderMetrics();
-  renderRatings();
   renderQuarterStatus();
   renderInvestigationPanel();
   renderActionPanel();
   ensureInteractivePanels();
   renderAuditPanel();
-  renderCallChoices();
   const reportNode = document.getElementById("report");
   if (!reportNode.textContent) reportNode.textContent = generateReportText();
   renderTicker();
