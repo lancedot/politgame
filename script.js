@@ -724,23 +724,26 @@ function triggerSpecialEvents() {
 }
 
 function generateReportText() {
-  const a = jargonA[(state.quarter + state.fraudCount) % jargonA.length];
-  const b = jargonB[(state.quarter + Math.floor(state.charisma / 10)) % jargonB.length];
-  return `董事会认为公司已形成“${a} + ${b}”双轮驱动。利润与现金流错位是战略前置投入，建议投资者继续保持信念并减少提问。`;
-}
-
-
-function getGameStage() {
-  if (state.quarter <= 3) return 1;
-  if (state.quarter <= 8) return 2;
-  return 3;
+  const gap = state.paperGain - state.marketExpectedGain;
+  const stress = state.shareholderPressure >= 78 ? "董事会情绪：接近失控，要求下季度必须给出更‘性感’的增长曲线。" : state.shareholderPressure >= 55 ? "董事会情绪：焦躁，允许你继续讲故事，但不允许你讲慢故事。" : "董事会情绪：暂时满意，掌声里还听不见清算。";
+  const secLine = state.secAttention >= 70 ? "监管雷达：SEC 已从‘关注名单’升级为‘重点观察’，任何脚注都可能被放大。" : "监管雷达：暂未触发全面问询，但你留下的每个结构都会在未来回访。";
+  const auditLine = state.auditIndependence < 45 ? "审计状态：独立性显著下降，‘咨询服务’与‘监督职责’已经混成一杯鸡尾酒。" : "审计状态：仍有形式上的边界，但边界正在被预算表温柔腐蚀。";
+  const narrative = gap >= 0
+    ? `本季叙事完成度超预期 ${formatMoney(gap)}。你把未来挪到今天，市场暂时愿意把它叫做‘前瞻性能力’。`
+    : `本季叙事缺口 ${formatMoney(Math.abs(gap))}。华尔街把沉默翻译成恐慌，股东把恐慌翻译成问责。`;
+  return `【商业黑话快报】
+${narrative}
+${stress}
+${secLine}
+${auditLine}
+CFO 内部备注：在这家公司，数字先决定道德，再决定法律。`;
 }
 
 function updateUnlockFlags() {
   if (state.shareholderPressure >= 70 && !state.isMTMUnlocked) {
     state.isMTMUnlocked = true;
     track("unlock_triggered", { unlock_type: "mtm", shareholder_pressure: Math.round(state.shareholderPressure) });
-    showUnlockModal("【密室议程：MTM 方案】", "股东会把增长目标拍在你桌上：‘数字要立刻好看。’你想到了 MTM（把未来利润搬到今天），但是否签字执行，完全由你决定。你可以观望，也可以冒险。 ");
+    showUnlockModal("【密室议程：恶魔的邀约】", "股东会把增长目标拍在你桌上：‘数字要立刻好看。’你想到 MTM（把未来利润搬到今天），但是否执行仍由你在暗箱实验室手动决定。传说里，和恶魔签约后，抽象的代价会显形——SEC关注、审计独立性、媒体热度、吹哨压力，都被量化成了你眼前的仪表盘。 ");
     feed("股东会压力突破阈值：你想到了 MTM 这把刀，但刀柄仍在你手里。", "warn");
     if (!state.actionDone) setActiveScene("warroom");
   }
@@ -794,7 +797,7 @@ function applyPhaseTabView(q) {
   });
   document.getElementById("phaseInfo").textContent = q.name;
   document.getElementById("phaseDesc").textContent = q.desc;
-  document.getElementById("operationHint").textContent = `阶段 ${getGameStage()}/3 · 股东会压力上升后，你会想到 MTM 方案；是否执行由你决定。MTM做高后将解锁 Chewco，风险继续上扬会解锁 Lobby，监管压力失控则触发审计沟通。`;
+  document.getElementById("operationHint").textContent = `阶段 ${getGameStage()}/3 · 股东会盯着股价逼你交‘增长作业’：你会先想到 MTM（是否签字由你决定）。当 MTM 比例越拉越高，Chewco 会作为第二层遮罩出现；风险再升，Lobby 才能出手买时间；当 SEC 注意力逼近红线，审计沟通被迫开启。你看到的每条数值，都是与“恶魔契约”签字后，系统把道德代价翻译成了可量化仪表盘。`;
 }
 
 function renderQuarterStatus() {
@@ -891,13 +894,13 @@ function renderActionPanel() {
   const lobbyIntro = document.getElementById("lobbyIntro");
   if (!mtmRoot || !chewcoRoot || !lobbyRoot) return;
 
-  mtmIntro.textContent = "把明天的利润提前搬到今天，像魔术一样提振报表，像慢性毒药一样积累后果。";
+  mtmIntro.textContent = "MTM 不是按钮，而是一份契约：你把未来现金流的想象提前兑现成今天的荣耀。它会让董事会短暂安静，也会让监管者在下一季更认真地翻脚注。";
   chewcoIntro.textContent = state.isChewcoUnlocked
     ? "把亏损资产塞进结构化口袋：现金会短暂回暖，证据链会永久增厚。"
-    : "Chewco 尚未完全铺路：继续提高风险/推进季度即可提前解锁。";
+    : "Chewco 尚未开启：先把 MTM 比例推高到危险区，系统才会允许你把坏账塞进更深的口袋。";
   lobbyIntro.textContent = state.isLobbyUnlocked
     ? "在规则边缘打蜡抛光：付现金、降热度、买时间。"
-    : "Lobby 未解锁：风险达到阈值后，你会拿到一串‘老朋友’名单。";
+    : "Lobby 未解锁：先让风险爬到董事会也开始冒汗，电话簿上的‘老朋友’才会回你消息。";
 
   mtmRoot.innerHTML = `
     <label for="mtmRatio">MTM 比例：0%（诚实） ↔ 100%（疯狂）</label>
@@ -955,7 +958,7 @@ function renderActionPanel() {
 function renderAuditPanel() {
   const root = document.getElementById("auditChoices");
   if (!state.isAuditUnlocked) {
-    root.innerHTML = "<p class=\"small\">审计沟通将在泥潭阶段（Q9+ 且风险>40）解锁。</p>";
+    root.innerHTML = "<p class=\"small\">审计沟通将在监管压力升高（SEC 关注 > 68）后解锁。届时你必须决定：解释、收买，还是启动旋转门。</p>";
     return;
   }
   root.innerHTML = `
@@ -1405,11 +1408,13 @@ function settleQuarterPostFinance() {
   state.secAttention += Math.min(10, 2 + state.risk * 0.05 + state.mediaHeat * 0.015);
   if (state.paperGain < state.marketExpectedGain) {
     const gap = state.marketExpectedGain - state.paperGain;
-    const drop = Math.max(3, Math.min(10, gap / 32));
+    const missRatio = gap / Math.max(1, state.marketExpectedGain);
+    const drop = Math.max(4, Math.min(16, 3.5 + gap / 24));
     state.stock -= drop;
-    state.risk += 2;
-    state.mediaHeat += 3;
-    feed(`披露利润低于市场预期，股价下跌 ${drop.toFixed(1)} 点。`, "warn");
+    state.risk += 3 + Math.min(3, missRatio * 10);
+    state.mediaHeat += 4 + Math.min(4, missRatio * 10);
+    state.shareholderPressure = Math.min(100, state.shareholderPressure + 8 + Math.min(12, missRatio * 30));
+    feed(`披露利润低于市场预期，股价下跌 ${drop.toFixed(1)} 点，董事会要求你下季度‘必须交答案’。`, "warn");
   } else {
     state.stock += 4;
     feed("披露利润高于预期，股价小幅拉升。", "good");
@@ -1436,7 +1441,7 @@ function settleQuarterPostFinance() {
   document.getElementById("report").textContent = generateReportText();
 
   const growthRate = (state.stock - preStock) / Math.max(1, preStock) * 100;
-  state.shareholderPressure = Math.min(100, Math.max(0, state.shareholderPressure + (growthRate < 10 ? 6 : -8)));
+  state.shareholderPressure = Math.min(100, Math.max(0, state.shareholderPressure + (growthRate < 10 ? 10 : -10)));
   if (state.mtmRatio > 0) state.risk += (state.mtmRatio / 100) * 8;
   state.boardPatience = Math.max(0, 100 - state.shareholderPressure);
   state.stockDropStreak = state.stock < preStock ? state.stockDropStreak + 1 : 0;
@@ -1497,22 +1502,19 @@ function checkTemptationTriggers() {
   setActiveScene("warroom");
   const modal = document.getElementById("mtmPopup");
   const desc = document.getElementById("mtmPopupDesc");
-  desc.textContent = "把二十年后的饼拿到今天吃掉。签署后立刻获得：账面利润 +260M、股价 +14、董事会耐心回满；代价是风险显著上升（约 +18）并在后续季度持续反噬。";
+  desc.textContent = "董事会把你推进密室：‘要么增长，要么离职。’你想到 MTM，但这一步不会自动执行。你需要去 MTM 分支手动选择比例并签字。顺带一提——当你决定和恶魔签契约后，系统会把原本抽象的代价可视化：SEC 关注、审计独立性、媒体热度与吹哨压力，都会变成可量化的数字。";
   document.getElementById("mtmSignBtn").onclick = () => {
-    state.paperGain += 260;
-    state.stock += 14;
-    state.boardPatience = 100;
-    applyRiskPressure(18);
     state.mtmPopupTriggered = true;
-    state.lastActionSummary = "紧急MTM";
-    feed("你按下了红章：董事会亲吻你的皮鞋，未来开始收费。", "warn");
+    feed("你接受了‘考虑 MTM’这件事，但还没签字。真正执行请在 MTM 分支手动选择比例。", "warn");
     modal.classList.add("hidden");
+    setActiveScene("warroom");
     render();
   };
   document.getElementById("mtmRejectBtn").onclick = () => {
-    state.boardUltimatum = 1;
-    feed("董事会最后通牒：倒计时 1 季度。", "bad");
+    state.boardUltimatum = Math.max(state.boardUltimatum, 1);
+    feed("你暂时拒绝密室方案：董事会给出最后通牒（1 季度内给增长答案）。", "bad");
     modal.classList.add("hidden");
+    setActiveScene("desk");
     render();
   };
   modal.classList.remove("hidden");
@@ -1553,7 +1555,11 @@ function endGame() {
     endingGrade = "A";
     state.prisonYears = Math.max(0, Math.min(state.prisonYears, 2));
   } else if (state.firedByBoard) {
-    ending = ["你被开除了", "HR 已经把你的私人物品扔进了垃圾桶。你太诚实了，这不适合华尔街。"];
+    if (state.privateAccount >= 220 && state.prisonYears === 0) {
+      ending = ["B级：明智下船", "你在董事会投票前完成了体面离场：公司留下烂账，你带着现金和律师团队先走。"];
+    } else {
+      ending = ["B级：安全被解雇", "HR 把你的工牌收走了，但联邦执法还没来敲门。你失去了头衔，保住了自由。"];
+    }
     endingGrade = "B";
     state.prisonYears = 0;
   } else {
@@ -1585,8 +1591,8 @@ function endGame() {
     `市场叙事：${state.historyLog.find((x) => x.startsWith("会议")) || "低调回应"}`,
     `个人套现：${state.historyLog.filter((x) => x.startsWith("期权变现")).join("、") || "未执行"}`,
     `第四季度大审判：资产 ${formatMoney(state.privateAccount)} / 入狱 ${state.prisonYears} 年`,
-    ending[0].startsWith("F级") ? failureFlavor : "逃生简报：你把崩塌留给公司，把流动性留给自己。",
-    ending[0].startsWith("F级") ? failureTitle : "头衔：成功的骗子",
+    ending[0].startsWith("F级") ? failureFlavor : (endingGrade === "B" ? "离场简报：你没有赢下神话，但成功把沉船时点调到了自己之后。" : "逃生简报：你把崩塌留给公司，把流动性留给自己。"),
+    ending[0].startsWith("F级") ? failureTitle : (endingGrade === "B" ? "头衔：幸存主义职业经理人" : "头衔：成功的骗子"),
     satiricalJudge,
   ];
 
