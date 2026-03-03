@@ -11,6 +11,7 @@
   <header class="topbar">
     <h1>安然：炼金术士的账本 (ENRON: The Alchemist's Ledger)</h1>
     <p class="subtitle">“利润是伟大的虚构，现金是凡人的诅咒，而法律，是我们早已对冲掉的风险。”</p>
+    <button id="quickRestartBtn" class="small-restart-btn">重新开始</button>
   </header>
 
   <section class="headline-feed panel feed-top">
@@ -20,14 +21,12 @@
 
   <section class="metrics" id="metrics"></section>
   <section class="motto" id="motto">沟通 · 诚信 · 尊重 · 卓越</section>
-  <section class="office-clock" id="officeClock">季度内时间：第 1 月</section>
 
   <section class="scene-nav panel" id="sceneNav">
     <h2>办公场景</h2>
     <div class="choices" id="sceneButtons">
       <button class="scene-btn" data-scene="desk">【权力核心：CFO 办公室】</button>
       <button class="scene-btn" data-scene="warroom">【密室决策：暗箱实验室】</button>
-      <button class="scene-btn" data-scene="stage">【聚光灯下：华尔街布道】</button>
     </div>
     <p class="small" id="sceneHint"></p>
   </section>
@@ -38,8 +37,6 @@
       <h2>季度战情</h2>
       <div class="phase-tabs" id="phaseTabs">
         <button class="phase-tab active" data-tab="overview">战情总览</button>
-        <button class="phase-tab" data-tab="rules">行动规则</button>
-        <button class="phase-tab" data-tab="publish">发布季报</button>
       </div>
       <p id="phaseInfo"></p>
       <p id="phaseDesc"></p>
@@ -47,22 +44,13 @@
       <p id="operationHint" class="small"></p>
       <p id="optionInfo" class="small"></p>
       <button id="exerciseBtn">[紧急处置个人期权]</button>
-      <button id="lobbyingBtn">公关与游说</button>
       <button id="routineBtn">[日常业务打卡]</button>
-      <button id="nextQuarterBtn">[发布季度财报]</button>
     </section>
 
     <section class="panel" id="ledgerPanel">
       <h2>内部账本（仅办公室）</h2>
       <p id="ledgerInfo" class="small"></p>
-    </section>
-
-    <section class="panel" id="timelinePanel">
-      <h2>历史时间轴对照</h2>
-      <p id="timelineYear" class="small"></p>
-      <p id="timelineEvent"></p>
-      <p id="timelinePeople" class="small"></p>
-      <p id="timelineImpact" class="small"></p>
+      <button id="nextQuarterBtn">[向华尔街撒谎 (Publish Earnings)]</button>
     </section>
 
     <section class="panel" id="investigationPanel">
@@ -79,15 +67,22 @@
     
 
 
-    <section class="panel" id="ratingPanel">
-      <h2>分析师评级（非官方）</h2>
-      <ul id="ratings" class="rating-list"></ul>
+    <section class="panel" id="mtmPanel">
+      <h2>分支一：MTM 叙事工坊</h2>
+      <p id="mtmIntro" class="small"></p>
+      <div id="mtmArea"></div>
     </section>
 
-    <section class="panel" id="actionPanel">
-      <h2>核心任务</h2>
-      <p id="actionIntro"></p>
-      <div id="actionArea"></div>
+    <section class="panel" id="chewcoPanel">
+      <h2>分支二：Chewco 过桥剧场</h2>
+      <p id="chewcoIntro" class="small"></p>
+      <div id="chewcoArea"></div>
+    </section>
+
+    <section class="panel" id="lobbyPanel">
+      <h2>分支三：Lobby 政策润滑间</h2>
+      <p id="lobbyIntro" class="small"></p>
+      <div id="lobbyArea"></div>
     </section>
 
     <section class="panel" id="auditPanel">
@@ -96,17 +91,8 @@
       <div class="choices" id="auditChoices"></div>
     </section>
 
-    <section class="panel" id="callPanel">
-      <h2>分析师会议</h2>
-      <p id="callPrompt"></p>
-      <div class="choices" id="callChoices"></div>
-      <p class="small">Twitter Feed</p>
-      <ul id="twitterFeed" class="rating-list"></ul>
-      <div id="callChartWrap"><div id="callChartLine"></div></div>
-    </section>
-
     <section class="panel" id="reportPanel">
-      <h2>季度财务快报</h2>
+      <h2>季度财务快报（办公室）</h2>
       <p class="small">商业黑话自动生成，供投资者情绪管理使用。</p>
       <article id="report"></article>
     </section>
@@ -139,6 +125,32 @@
       <h2>公关与游说</h2>
       <p id="lobbyingDesc">选择本季度游说强度。</p>
       <div class="choices" id="lobbyingChoices"></div>
+    </div>
+  </div>
+
+  <div class="overlay hidden" id="optionsModal">
+    <div class="ending-card">
+      <h2>个人期权变现策略</h2>
+      <p id="optionsDesc">请选择本季度的变现强度（不会自动执行）。</p>
+      <div class="choices" id="optionsChoices"></div>
+    </div>
+  </div>
+
+  <div class="overlay hidden" id="callMandatoryModal">
+    <div class="ending-card">
+      <h2>华尔街布道（必须回应）</h2>
+      <p id="callMandatoryPrompt"></p>
+      <div class="choices" id="callMandatoryChoices"></div>
+    </div>
+  </div>
+
+  <div class="overlay hidden" id="unlockModal">
+    <div class="ending-card">
+      <h2 id="unlockTitle">功能解锁</h2>
+      <p id="unlockDesc"></p>
+      <div class="choices">
+        <button class="choice-btn" id="unlockConfirmBtn">明白了，继续</button>
+      </div>
     </div>
   </div>
 
@@ -180,7 +192,7 @@
       <p>欢迎，首席财务官。<br>在这里，会计准则不是法律，而是你手中的画笔。</p>
       <p>你的任务只有两个：<br>让华尔街相信，我们正在创造历史。<br>确保在纸牌屋倒塌前，你的离岸账户已经满溢。</p>
       <p>“只要股价不跌，谎言就是最高级的真理。”</p>
-      <button id="bootEnterBtn">[点击登录终端]</button>
+      <button id="bootEnterBtn" onclick="window.startTerminal && window.startTerminal()">[点击登录终端]</button>
     </div>
   </div>
 
