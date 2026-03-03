@@ -1495,6 +1495,7 @@ function checkTemptationTriggers() {
   const conditionB = state.stockDropStreak >= 2;
   const conditionC = state.realCash < nextSpeInterest;
   if (state.quarter < 4) return;
+  if (!state.isMTMUnlocked) return;
   if (!(conditionA || conditionB || conditionC || state.boardPatience < 30)) return;
   setActiveScene("warroom");
   const modal = document.getElementById("mtmPopup");
