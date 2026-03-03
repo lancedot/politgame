@@ -141,6 +141,7 @@ const state = {
   isLobbyUnlocked: false,
   isChewcoUnlocked: false,
   mtmRatio: 0,
+  mtmDoneThisQuarter: false,
   phaseTab: "overview",
   isSettlingQuarter: false,
 };
@@ -248,7 +249,7 @@ const quarterRandomEvents = Object.assign({}, content.events || {}, {
     title: "季度突发：安达信旋转门",
     desc: "那个审计员挺聪明，给他个 VP 当当，他就会忘了那笔坏账。",
     choices: [
-      { label: "A. 立即挖角（结果：风险 -30，现金 -100，SEC +4）", effect: (st) => { st.risk = Math.max(0, st.risk - 30); st.realCash -= 100; st.secAttention += 4; st.rotationDoorShield = true; const msg = "人事公告发布后，审计脚注立刻变得温柔。"; feed(msg, "warn"); return msg; } },
+      { label: "A. 立即挖角（结果：风险 -16，现金 -22，SEC +4）", effect: (st) => { st.risk = Math.max(0, st.risk - 16); st.realCash -= 22; st.secAttention += 4; st.rotationDoorShield = true; const msg = "人事公告发布后，审计脚注立刻变得温柔。"; feed(msg, "warn"); return msg; } },
       { label: "B. 保持距离（结果：风险 +6，现金 0，审计独立性 +8）", effect: (st) => { st.risk += 6; st.auditIndependence = Math.min(100, st.auditIndependence + 8); const msg = "你选择合规，短期日子更难，长期睡眠更好。"; feed(msg, "good"); return msg; } },
     ],
   },
@@ -768,11 +769,13 @@ function updateUnlockFlags() {
     feed("新功能解锁：Lobby 游说（风险过高触发）。", "warn");
   }
 
-  if (state.secAttention > 68 && !state.isAuditUnlocked) {
+  const auditRiskThreshold = 78;
+  if (state.risk >= auditRiskThreshold && !state.triggeredEvents.has("audit-inquiry-triggered")) {
+    state.triggeredEvents.add("audit-inquiry-triggered");
     state.isAuditUnlocked = true;
-    track("unlock_triggered", { unlock_type: "audit", sec_attention: Math.round(state.secAttention) });
-    showUnlockModal("审计沟通解锁", "监管关注度已逼近红线。审计团队要求你给出解释：每一次沟通都可能换来一季缓冲，也可能成为未来呈堂证供。 ");
-    feed("新功能解锁：审计沟通（监管压力过高触发）。", "warn");
+    track("unlock_triggered", { unlock_type: "audit", risk: Math.round(state.risk) });
+    showUnlockModal("审计师问询触发", `风险值达到 ${auditRiskThreshold}：审计师启动专项问询。该事件只会在首次越线时触发一次，后续请在“审计沟通”面板中选择应对策略。`);
+    feed(`审计师问询触发：风险达到 ${auditRiskThreshold}，审计沟通已开放。`, "warn");
   }
 }
 
@@ -809,7 +812,7 @@ function applyPhaseTabView(q) {
   });
   document.getElementById("phaseInfo").textContent = q.name;
   document.getElementById("phaseDesc").textContent = q.desc;
-  document.getElementById("operationHint").textContent = `阶段 ${getGameStage()}/3 · 股东会盯着股价逼你交‘增长作业’：你会先想到 MTM（是否签字由你决定）。当 MTM 比例越拉越高，Chewco 会作为第二层遮罩出现；风险再升，Lobby 才能出手买时间；当 SEC 注意力逼近红线，审计沟通被迫开启。你看到的每条数值，都是与“恶魔契约”签字后，系统把道德代价翻译成了可量化仪表盘。`;
+  document.getElementById("operationHint").textContent = `阶段 ${getGameStage()}/3 · 股东会盯着股价逼你交‘增长作业’：你会先想到 MTM（是否签字由你决定）。当 MTM 比例越拉越高，Chewco 会作为第二层遮罩出现；风险再升，Lobby 才能出手买时间；当风险首次冲上高位阈值时，将触发一次审计师专项问询。你看到的每条数值，都是与“恶魔契约”签字后，系统把道德代价翻译成了可量化仪表盘。`;
 }
 
 function renderQuarterStatus() {
@@ -917,7 +920,7 @@ function renderActionPanel() {
     <input type="range" id="mtmRatio" min="0" max="100" step="5" value="${state.mtmRatio}" />
     <p id="mtmPreview" class="small"></p>
     <p class="small">恶魔邀约·详细条款：你将未来合同的远期利润提前确认为本季收益。短期效果：股价与董事会满意度上升；中期副作用：风险、SEC关注、媒体热度、吹哨压力同步抬升；长期结局：每个漂亮数字都可能在法庭上变成证词。</p>
-    <button id="mtmApplyBtn" class="choice-btn" style="background:#7e1e1e;border-color:#d65a5a">[签署 MTM 方案]</button>
+    <button id="mtmApplyBtn" class="choice-btn" style="background:#7e1e1e;border-color:#d65a5a" ${state.mtmDoneThisQuarter ? "disabled" : ""}>${state.mtmDoneThisQuarter ? "[本季度已签署 MTM]" : "[签署 MTM 方案]"}</button>
   `;
 
   chewcoRoot.innerHTML = `
@@ -945,6 +948,10 @@ function renderActionPanel() {
   document.getElementById("warLobbyBtn").onclick = () => openLobbyingModal();
 
   btn.onclick = () => {
+    if (state.mtmDoneThisQuarter) {
+      feed("MTM 本季度已执行过一次，请下季度再签。", "warn");
+      return;
+    }
     const before = snapshotCore();
     state.mtmRatio = Number(slider.value);
     state.isMTMUnlocked = true;
@@ -958,7 +965,7 @@ function renderActionPanel() {
     state.shareholderPressure = Math.max(0, state.shareholderPressure - (20 * lift));
     track("mtm_ratio_set", { ratio: state.mtmRatio });
     state.lastActionSummary = `MTM-${state.mtmRatio}%`;
-    state.actionDone = true;
+    state.mtmDoneThisQuarter = true;
     feed(`MTM 已签署：比例 ${state.mtmRatio}%，董事会很满意，未来的你很危险。`, "warn");
     showDelta(before, "MTM 执行结果");
     render();
@@ -968,7 +975,7 @@ function renderActionPanel() {
 function renderAuditPanel() {
   const root = document.getElementById("auditChoices");
   if (!state.isAuditUnlocked) {
-    root.innerHTML = "<p class=\"small\">审计沟通将在监管压力升高（SEC 关注 > 68）后解锁。届时你必须决定：解释、收买，还是启动旋转门。</p>";
+    root.innerHTML = "<p class=\"small\">审计沟通将在风险首次达到 78 时触发一次审计师专项问询并解锁。届时你必须决定：解释、收买，还是启动旋转门。</p>";
     return;
   }
   root.innerHTML = `
@@ -1500,7 +1507,7 @@ function settleQuarterPostFinance() {
   state.tipShredBoost = false;
   state.riskGrowthFactor = 1;
   state.forcedWarRoomThisQuarter = false;
-  if (state.quarter >= 9) state.isAuditUnlocked = true;
+  state.mtmDoneThisQuarter = false;
   emitHook("beforeQuarterStart", { quarter: state.quarter });
   track("quarter_start", { quarter: state.quarter });
   feed("[季度财务快报] 华尔街为我们的‘成长’欢呼，尽管你的金库已经空得能听到回声。", "warn");
@@ -1696,6 +1703,7 @@ function loadGame() {
     state.isLobbyUnlocked = !!data.isLobbyUnlocked;
     state.isChewcoUnlocked = !!data.isChewcoUnlocked;
     state.mtmRatio = data.mtmRatio || 0;
+    state.mtmDoneThisQuarter = !!data.mtmDoneThisQuarter;
     state.phaseTab = data.phaseTab || "overview";
     state.isSettlingQuarter = false;
   } catch (_) {
