@@ -751,7 +751,10 @@ function updateUnlockFlags() {
   if (state.shareholderPressure >= 70 && !state.isMTMUnlocked) {
     state.isMTMUnlocked = true;
     track("unlock_triggered", { unlock_type: "mtm", shareholder_pressure: Math.round(state.shareholderPressure) });
-    showUnlockModal("【密室议程：恶魔的邀约】", "股东会把增长目标拍在你桌上：‘数字要立刻好看。’你想到 MTM（把未来利润搬到今天），但是否执行仍由你在暗箱实验室手动决定。传说里，和恶魔签约后，抽象的代价会显形——SEC关注、审计独立性、媒体热度、吹哨压力，都被量化成了你眼前的仪表盘。 ");
+    if (!state.triggeredEvents.has("mtm-invite-shown")) {
+      state.triggeredEvents.add("mtm-invite-shown");
+      showUnlockModal("【密室议程：恶魔的邀约】", "股东会把增长目标拍在你桌上：‘数字要立刻好看。’你想到 MTM（把未来利润搬到今天），但是否执行仍由你在暗箱实验室手动决定。传说里，和恶魔签约后，抽象的代价会显形——SEC关注、审计独立性、媒体热度、吹哨压力，都被量化成了你眼前的仪表盘。 ");
+    }
     feed("股东会压力突破阈值：你想到了 MTM 这把刀，但刀柄仍在你手里。", "warn");
   }
 
@@ -812,7 +815,7 @@ function applyPhaseTabView(q) {
   });
   document.getElementById("phaseInfo").textContent = q.name;
   document.getElementById("phaseDesc").textContent = q.desc;
-  document.getElementById("operationHint").textContent = `阶段 ${getGameStage()}/3 · 股东会盯着股价逼你交‘增长作业’：你会先想到 MTM（是否签字由你决定）。当 MTM 比例越拉越高，Chewco 会作为第二层遮罩出现；风险再升，Lobby 才能出手买时间；当风险首次冲上高位阈值时，将触发一次审计师专项问询。你看到的每条数值，都是与“恶魔契约”签字后，系统把道德代价翻译成了可量化仪表盘。`;
+  document.getElementById("operationHint").textContent = `阶段 ${getGameStage()}/3 · 处理当季经营动作与密室策略，平衡增长叙事与监管风险。`;
 }
 
 function renderQuarterStatus() {
@@ -907,7 +910,9 @@ function renderActionPanel() {
   const lobbyIntro = document.getElementById("lobbyIntro");
   if (!mtmRoot || !chewcoRoot || !lobbyRoot) return;
 
-  mtmIntro.textContent = "MTM 不是按钮，而是一份契约：你把未来现金流的想象提前兑现成今天的荣耀。它会让董事会短暂安静，也会让监管者在下一季更认真地翻脚注。";
+  mtmIntro.textContent = state.mtmDoneThisQuarter || state.mtmRatio > 0
+    ? "MTM 不是按钮，而是一份契约：你把未来现金流的想象提前兑现成今天的荣耀。签约后，系统会把原本抽象的代价翻译成可量化仪表盘：SEC 关注、审计独立性、媒体热度与吹哨压力。"
+    : "MTM 不是按钮，而是一份契约：你把未来现金流的想象提前兑现成今天的荣耀。它会让董事会短暂安静，也会让监管者在下一季更认真地翻脚注。";
   chewcoIntro.textContent = state.isChewcoUnlocked
     ? "把亏损资产塞进结构化口袋：现金会短暂回暖，证据链会永久增厚。"
     : "Chewco 尚未开启：先把 MTM 比例推高到危险区，系统才会允许你把坏账塞进更深的口袋。";
@@ -1466,7 +1471,11 @@ function settleQuarterPostFinance() {
   document.getElementById("report").textContent = generateReportText();
 
   const growthRate = (state.stock - preStock) / Math.max(1, preStock) * 100;
-  state.shareholderPressure = Math.min(100, Math.max(0, state.shareholderPressure + (growthRate < 10 ? 10 : -10)));
+  let pressureDelta = -10;
+  if (growthRate < 0) pressureDelta = 16;
+  else if (growthRate < 5) pressureDelta = 13;
+  else if (growthRate < 10) pressureDelta = 10;
+  state.shareholderPressure = Math.min(100, Math.max(0, state.shareholderPressure + pressureDelta));
   if (state.mtmRatio > 0) state.risk += (state.mtmRatio / 100) * 8;
   state.boardPatience = Math.max(0, 100 - state.shareholderPressure);
   state.stockDropStreak = state.stock < preStock ? state.stockDropStreak + 1 : 0;
@@ -1525,13 +1534,14 @@ function checkTemptationTriggers() {
   if (state.quarter < 4) return;
   if (!state.isMTMUnlocked) return;
   if (!(conditionA || conditionB || conditionC || state.boardPatience < 30)) return;
+  if (state.mtmPopupTriggered) return;
   if (!isWarroomUnlocked()) return;
+  state.mtmPopupTriggered = true;
   setActiveScene("warroom");
   const modal = document.getElementById("mtmPopup");
   const desc = document.getElementById("mtmPopupDesc");
   desc.textContent = "董事会把你推进密室：‘要么增长，要么离职。’你想到 MTM，但这一步不会自动执行。你需要去 MTM 分支手动选择比例并签字。顺带一提——当你决定和恶魔签契约后，系统会把原本抽象的代价可视化：SEC 关注、审计独立性、媒体热度与吹哨压力，都会变成可量化的数字。";
   document.getElementById("mtmSignBtn").onclick = () => {
-    state.mtmPopupTriggered = true;
     feed("你接受了‘考虑 MTM’这件事，但还没签字。真正执行请在 MTM 分支手动选择比例。", "warn");
     modal.classList.add("hidden");
     setActiveScene("warroom");
