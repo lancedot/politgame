@@ -548,12 +548,16 @@ function syncBootModalVisibility() {
 
 function maybeShowQuarterQuote() {
   if (!state.bootCompleted) return;
+  if (state.isSettlingQuarter) return;
   if (state.quoteShownForQuarter === state.quarter) return;
+  const modal = document.getElementById("quoteModal");
+  const text = document.getElementById("quoteText");
+  if (!modal || !text) return;
+  if (!modal.classList.contains("hidden")) return;
   const quoteKey = getRotatingKey(quarterQuotes, state.quarter);
   const quotes = quarterQuotes[quoteKey] || quarterQuotes[1];
   const quote = quotes[Math.floor(Math.random() * quotes.length)];
-  const modal = document.getElementById("quoteModal");
-  document.getElementById("quoteText").textContent = quote;
+  text.textContent = quote;
   modal.classList.remove("hidden");
   state.quoteShownForQuarter = state.quarter;
 }
@@ -1691,7 +1695,29 @@ function doRoutineCheckin() {
 document.getElementById("nextQuarterBtn").addEventListener("click", settleQuarter);
 document.getElementById("exerciseBtn").addEventListener("click", exerciseOptions);
 document.getElementById("routineBtn").addEventListener("click", doRoutineCheckin);
-document.getElementById("closeQuoteBtn").addEventListener("click", () => document.getElementById("quoteModal").classList.add("hidden"));
+function dismissQuarterQuote() {
+  const modal = document.getElementById("quoteModal");
+  if (!modal) return;
+  modal.classList.add("hidden");
+  state.quoteShownForQuarter = state.quarter;
+  saveGame();
+}
+
+const closeQuoteBtn = document.getElementById("closeQuoteBtn");
+if (closeQuoteBtn) closeQuoteBtn.addEventListener("click", dismissQuarterQuote);
+
+const quoteModal = document.getElementById("quoteModal");
+if (quoteModal) {
+  quoteModal.addEventListener("click", (e) => {
+    if (e.target === quoteModal) dismissQuarterQuote();
+  });
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  const modal = document.getElementById("quoteModal");
+  if (modal && !modal.classList.contains("hidden")) dismissQuarterQuote();
+});
 
 loadGame();
 feed("议程启动：利润可以先到，后果会准时到。", "warn");
