@@ -563,6 +563,9 @@ function maybeShowQuarterQuote() {
 }
 
 function setActiveScene(scene) {
+  if (scene === "warroom" && !isWarroomUnlocked()) {
+    scene = "desk";
+  }
   state.activeScene = scene;
   document.body.classList.remove("scene-desk", "scene-warroom", "scene-stage");
   document.body.classList.add(`scene-${scene}`);
@@ -584,6 +587,10 @@ function setActiveScene(scene) {
       el.style.display = k === scene ? "" : "none";
     });
   });
+}
+
+function isWarroomUnlocked() {
+  return state.isMTMUnlocked || state.isChewcoUnlocked || state.isLobbyUnlocked || state.isAuditUnlocked;
 }
 
 function wireSceneButtons() {
@@ -745,7 +752,6 @@ function updateUnlockFlags() {
     track("unlock_triggered", { unlock_type: "mtm", shareholder_pressure: Math.round(state.shareholderPressure) });
     showUnlockModal("【密室议程：恶魔的邀约】", "股东会把增长目标拍在你桌上：‘数字要立刻好看。’你想到 MTM（把未来利润搬到今天），但是否执行仍由你在暗箱实验室手动决定。传说里，和恶魔签约后，抽象的代价会显形——SEC关注、审计独立性、媒体热度、吹哨压力，都被量化成了你眼前的仪表盘。 ");
     feed("股东会压力突破阈值：你想到了 MTM 这把刀，但刀柄仍在你手里。", "warn");
-    if (!state.actionDone) setActiveScene("warroom");
   }
 
   if (state.isMTMUnlocked && state.mtmRatio >= 55 && !state.isChewcoUnlocked) {
@@ -814,7 +820,7 @@ function renderQuarterStatus() {
     checkTemptationTriggers();
   }
   document.getElementById("nextQuarterBtn").textContent = "[向华尔街撒谎 (Publish Earnings)]";
-  const warroomUnlocked = state.isMTMUnlocked || state.isChewcoUnlocked || state.isLobbyUnlocked || state.isAuditUnlocked;
+  const warroomUnlocked = isWarroomUnlocked();
   const sceneMap = {
     1: ["desk"],
     2: warroomUnlocked ? ["desk", "warroom"] : ["desk"],
@@ -838,9 +844,6 @@ function renderQuarterStatus() {
     routineBtn.textContent = state.actionDone ? "[平庸的日常（本季度已执行）]" : "[平庸的日常 (Honest Grinding)]";
   }
   updateUnlockFlags();
-  if (!state.actionDone && state.isMTMUnlocked && stage >= 2) {
-    setActiveScene("warroom");
-  }
   setActiveScene(state.activeScene);
 }
 
@@ -1086,6 +1089,11 @@ function openMandatoryCallModal(onDone) {
     return;
   }
   const deck = analystQuarterDeck[getRotatingKey(analystQuarterDeck, state.quarter)] || analystQuarterDeck[1];
+  if (!deck || !Array.isArray(deck.choices) || deck.choices.length === 0) {
+    feed("分析师会脚本缺失：已跳过问询，继续季度结算。", "warn");
+    onDone();
+    return;
+  }
   prompt.textContent = deck.prompt;
   root.innerHTML = "";
   deck.choices.forEach((opt) => {
@@ -1152,9 +1160,16 @@ function resolveQuarterRandomEvent(onDone) {
   const modal = document.getElementById("randomEvent");
   const titleNode = document.getElementById("eventTitle");
   const descNode = document.getElementById("eventDesc");
+  const root = document.getElementById("eventChoices");
+  if (!event || !modal || !titleNode || !descNode || !root || !Array.isArray(event.choices) || event.choices.length === 0) {
+    state.randomEventResolved = true;
+    state.triggeredEvents.add(eventGuardKey);
+    feed("季度突发事件面板异常：已自动跳过并继续结算。", "warn");
+    onDone();
+    return;
+  }
   titleNode.textContent = event.title;
   descNode.textContent = event.desc;
-  const root = document.getElementById("eventChoices");
   root.innerHTML = "";
 
   event.choices.forEach((c, idx) => {
@@ -1497,6 +1512,7 @@ function checkTemptationTriggers() {
   if (state.quarter < 4) return;
   if (!state.isMTMUnlocked) return;
   if (!(conditionA || conditionB || conditionC || state.boardPatience < 30)) return;
+  if (!isWarroomUnlocked()) return;
   setActiveScene("warroom");
   const modal = document.getElementById("mtmPopup");
   const desc = document.getElementById("mtmPopupDesc");
@@ -1523,7 +1539,29 @@ function progressQuarter() {
   state.isSettlingQuarter = true;
   track("publish_clicked", { action_done: state.actionDone });
   if (!state.actionDone) feed("你提前发布了季报：华尔街喜欢速度，不喜欢真相。", "warn");
-  resolveQuarterRandomEvent(() => openMandatoryCallModal(settleQuarterCore));
+  const settleOnce = (() => {
+    let done = false;
+    return () => {
+      if (done) return;
+      done = true;
+      settleQuarterCore();
+    };
+  })();
+  const callOnce = (() => {
+    let done = false;
+    return () => {
+      if (done) return;
+      done = true;
+      openMandatoryCallModal(settleOnce);
+    };
+  })();
+  try {
+    resolveQuarterRandomEvent(callOnce);
+  } catch (err) {
+    console.warn("[progress-quarter]", err);
+    feed("季度推进遇到异常：已跳过突发事件并继续结算。", "warn");
+    callOnce();
+  }
 }
 
 function settleQuarter() {
