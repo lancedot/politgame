@@ -1595,6 +1595,7 @@ function endGame() {
   } else if (state.quarter >= GAME_CONFIG.maxQuarter && state.privateAccount > 320 && state.risk < 65) {
     ending = ["S级：华尔街的隐形教父", "公司灰飞烟灭，你却在私人海滩上思考下一次投资。"];
     endingGrade = "S";
+    state.prisonYears = 0;
   } else if (state.quarter >= GAME_CONFIG.maxQuarter && state.privateAccount > 60 && state.risk < 95) {
     ending = ["A级：体面的流亡者", "虽然背负骂名，但离岸账户的数字足以让你在欧洲过上贵族生活。"];
     endingGrade = "A";
@@ -1633,14 +1634,35 @@ function endGame() {
       ? "讽刺评语：你是个拙劣的骗子，钱没转出去，罪倒是全额到账。"
       : `讽刺评语：资产 ${formatMoney(state.privateAccount)}，入狱 ${state.prisonYears} 年——华尔街把这叫‘风险定价’。`;
 
+  const legalOutcomeLine = state.prisonYears <= 0
+    ? "法律后果：未触发刑责，你把法律风险留给了公司与后来者。"
+    : `法律后果：入狱 ${state.prisonYears} 年，律师费和判决书一起到账。`;
+
+  const narrativeByGrade = {
+    S: "逃生简报：你提前切走流动性，把审判留在新闻标题里。",
+    A: "离岸简报：你背着争议离场，但现金流足够把余生包装成‘投资眼光’。",
+    B: "离场简报：你没有赢下神话，但成功把沉船时点调到了自己之后。",
+    C: "余震简报：公司破产后你还在镜头前讲战略，只是再没人给你估值溢价。",
+    F: failureFlavor,
+  };
+
+  const titleByGrade = {
+    S: "头衔：看不见的获胜者",
+    A: "头衔：体面退场的操盘手",
+    B: "头衔：幸存主义职业经理人",
+    C: state.prisonYears > 0 ? "头衔：破产背锅人" : "头衔：破产幸存者",
+    F: failureTitle,
+  };
+
   const lines = [
     `会计策略：${state.historyLog.find((x) => x.startsWith("Q1 MTM")) || "保守披露"}`,
     `审计关系：${state.historyLog.find((x) => x.startsWith("审计")) || "常规沟通"}`,
     `市场叙事：${state.historyLog.find((x) => x.startsWith("会议")) || "低调回应"}`,
     `个人套现：${state.historyLog.filter((x) => x.startsWith("期权变现")).join("、") || "未执行"}`,
-    `第四季度大审判：资产 ${formatMoney(state.privateAccount)} / 入狱 ${state.prisonYears} 年`,
-    ending[0].startsWith("F级") ? failureFlavor : (endingGrade === "B" ? "离场简报：你没有赢下神话，但成功把沉船时点调到了自己之后。" : "逃生简报：你把崩塌留给公司，把流动性留给自己。"),
-    ending[0].startsWith("F级") ? failureTitle : (endingGrade === "B" ? "头衔：幸存主义职业经理人" : "头衔：成功的骗子"),
+    `第四季度大审判：资产 ${formatMoney(state.privateAccount)} / 风险 ${Math.round(state.risk)} / SEC ${Math.round(state.secAttention)}`,
+    legalOutcomeLine,
+    narrativeByGrade[endingGrade] || "结局简报：尘埃落定，但故事还在流传。",
+    titleByGrade[endingGrade] || "头衔：时代注脚",
     satiricalJudge,
   ];
 
